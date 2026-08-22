@@ -279,12 +279,14 @@ type SortKey = "nome" | "categoria" | "preco" | "quantidadeEstoque" | "margemLuc
 type ModalState = { tipo: "produto"; produto?: Produto } | { tipo: "estoque"; produto: Produto } | { tipo: "excluir"; produto: Produto } | null;
 type AbaTipo = "ativos" | "alerta" | "esgotados" | "inativos";
 
-function NomeProduto({ nome, unidade }: { nome: string; unidade?: string }) {
-  const MAX = 24;
+function NomeProduto({ nome, unidade, categoria }: { nome: string; unidade?: string; categoria?: string }) {
   return (
-    <td style={{ padding: "12px", maxWidth: 220 }}>
+    <td className="produto-cell-nome" style={{ padding: "12px", maxWidth: 220 }}>
       <p title={nome} style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nome}</p>
-      {unidade && <span style={{ fontSize: 10, color: "var(--foreground-subtle)" }}>{unidade}</span>}
+      <span className="produto-mobile-meta">
+        {[categoria, unidade].filter(Boolean).join(" · ")}
+      </span>
+      {unidade && <span className="produto-desktop-unit" style={{ fontSize: 10, color: "var(--foreground-subtle)" }}>{unidade}</span>}
     </td>
   );
 }
@@ -472,7 +474,7 @@ const handleRestaurar = async (p: Produto) => {
   if (!empresaAtiva) return <div style={{ padding: 48, textAlign: "center", color: "var(--foreground-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}><Package size={40} color="var(--foreground-subtle)" /><p>Selecione uma empresa para ver os produtos.</p></div>;
 
   return (
-    <div style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="produtos-page" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}>
       
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -488,11 +490,13 @@ const handleRestaurar = async (p: Produto) => {
         </button>
       </div>
 
-      <BarraUsoProdutos total={stats.ativos} plano={planoAtual} onUpgrade={() => onNavegar?.("planos")} />
+      <div className="produtos-uso-mobile">
+        <BarraUsoProdutos total={stats.ativos} plano={planoAtual} onUpgrade={() => onNavegar?.("planos")} />
+      </div>
 
       {/* ABAS E FILTROS */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-        <div style={{ display: "flex", gap: 16, overflowX: "auto" }}>
+      <div className="produtos-toolbar" style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+        <div className="produtos-tabs" style={{ display: "flex", gap: 16, overflowX: "auto" }}>
           {[
             { id: "ativos", label: "Ativos", count: stats.ativos, color: "var(--primary)" },
             { id: "alerta", label: "Em Alerta", count: stats.alerta, color: "#f59e0b", icon: <AlertTriangle size={12} /> },
@@ -510,7 +514,7 @@ const handleRestaurar = async (p: Produto) => {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="produtos-filtros" style={{ display: "flex", gap: 8 }}>
           <div style={{ position: "relative", minWidth: 200 }}>
             <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--foreground-subtle)" }} />
             <input style={{ ...inp, paddingLeft: 32 }} placeholder="Filtrar produtos..." value={filtro} onChange={(e) => setFiltro(e.target.value)} />
@@ -523,9 +527,9 @@ const handleRestaurar = async (p: Produto) => {
       </div>
 
       {/* Tabela */}
-      <div style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div className="produtos-table-card desktop-data-table" style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+        <div className="produtos-table-scroll" style={{ overflowX: "auto" }}>
+          <table className="produtos-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <Th k="nome" label="Produto" />
@@ -545,7 +549,7 @@ const handleRestaurar = async (p: Produto) => {
                 const esgotado = p.ativo && p.quantidadeEstoque === 0;
                 return (
                   <tr key={p.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
-                    <NomeProduto nome={p.nome} unidade={p.unidade} />
+                    <NomeProduto nome={p.nome} unidade={p.unidade} categoria={p.categoria} />
                     <td style={{ padding: "12px" }}>{p.categoria && <span style={{ fontSize: 11, padding: "2px 8px", background: "var(--surface-overlay)", border: "1px solid var(--border)", borderRadius: 6 }}>{p.categoria}</span>}</td>
                     <td style={{ padding: "12px", fontSize: 13, fontWeight: 700 }}>{fmt(p.preco)}</td>
                     <td style={{ padding: "12px", fontSize: 12, color: "var(--foreground-muted)" }}>{p.precoCusto != null ? fmt(p.precoCusto) : <span style={{ color: "var(--foreground-subtle)" }}>—</span>}</td>
@@ -578,6 +582,38 @@ const handleRestaurar = async (p: Produto) => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mobile-only-list produtos-mobile-list">
+        {lista.length === 0 ? (
+          <div className="mobile-list-empty">Nenhum produto nesta categoria.</div>
+        ) : lista.map((p) => {
+          const alerta = p.ativo && p.quantidadeEstoque > 0 && p.quantidadeEstoque <= (p.estoqueMinimo || 0);
+          const esgotado = p.ativo && p.quantidadeEstoque === 0;
+          return (
+            <article className="produto-mobile-card" key={p.id}>
+              <button className="produto-mobile-info" onClick={() => setModal({ tipo: "produto", produto: p })}>
+                <strong>{p.nome}</strong>
+                <small>{[p.categoria, p.unidade].filter(Boolean).join(" · ") || "Sem categoria"}</small>
+              </button>
+              <div className="produto-mobile-numeros">
+                <strong>{fmt(p.preco)}</strong>
+                <span className={esgotado ? "is-danger" : alerta ? "is-warning" : ""}>{p.quantidadeEstoque} un.</span>
+              </div>
+              <div className="produto-mobile-acoes">
+                {abaAtiva !== "inativos" ? (
+                  <>
+                    <button aria-label="Alterar estoque" title="Alterar estoque" onClick={() => setModal({ tipo: "estoque", produto: p })}><Boxes size={13} /></button>
+                    <button aria-label="Editar produto" title="Editar produto" onClick={() => setModal({ tipo: "produto", produto: p })}><Edit2 size={13} /></button>
+                    <button className="danger" aria-label="Excluir produto" title="Excluir produto" onClick={() => setModal({ tipo: "excluir", produto: p })}><Trash2 size={13} /></button>
+                  </>
+                ) : (
+                  <button className="restore" onClick={() => handleRestaurar(p)}><RotateCcw size={13} /></button>
+                )}
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       {modal?.tipo === "produto" && <ModalProduto produto={modal.produto} categorias={categorias} onSave={handleSalvar} onClose={() => setModal(null)} saving={saving} />}

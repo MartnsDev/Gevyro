@@ -362,6 +362,12 @@ button, a, input, select, textarea {
 
 
 
+.produto-mobile-meta,
+.cliente-mobile-meta,
+.mobile-only-list {
+  display: none;
+}
+
 @media (max-width: 767px) {
 
   html,
@@ -529,6 +535,612 @@ button, a, input, select, textarea {
   .dashboard-mobile-scope table {
     min-width: 500px;
     font-size: 10px !important;
+  }
+
+  /* Produtos: tabela resumida em quatro colunas úteis no celular. */
+  .dashboard-mobile-scope .produtos-page,
+  .dashboard-mobile-scope .clientes-page {
+    gap: 6px !important;
+    padding: 6px !important;
+  }
+
+  .dashboard-mobile-scope .desktop-data-table {
+    display: none !important;
+  }
+
+  .dashboard-mobile-scope .mobile-only-list {
+    display: grid;
+    gap: 3px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card,
+  .dashboard-mobile-scope .cliente-mobile-card {
+    display: grid;
+    min-width: 0;
+    min-height: 46px;
+    align-items: center;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--surface-elevated);
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card {
+    grid-template-columns: minmax(0, 1fr) 72px 79px;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info,
+  .dashboard-mobile-scope .cliente-mobile-info {
+    display: flex;
+    min-width: 0;
+    min-height: 44px !important;
+    border: 0;
+    background: transparent;
+    color: var(--foreground);
+    text-align: left;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info {
+    flex-direction: column;
+    justify-content: center;
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info strong,
+  .dashboard-mobile-scope .cliente-mobile-texto strong {
+    display: block;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info small,
+  .dashboard-mobile-scope .cliente-mobile-texto small {
+    display: block;
+    overflow: hidden;
+    margin-top: 2px;
+    color: var(--foreground-subtle);
+    font-size: 8px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros {
+    min-width: 0;
+    padding: 3px;
+    text-align: right;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros strong,
+  .dashboard-mobile-scope .produto-mobile-numeros span {
+    display: block;
+    font-size: 9px !important;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros span {
+    margin-top: 2px;
+    color: var(--foreground-muted);
+  }
+
+  .dashboard-mobile-scope .is-danger { color: var(--destructive) !important; }
+  .dashboard-mobile-scope .is-warning { color: var(--warning) !important; }
+
+  .dashboard-mobile-scope .produto-mobile-acoes,
+  .dashboard-mobile-scope .cliente-mobile-acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+    padding-right: 4px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes button,
+  .dashboard-mobile-scope .cliente-mobile-acoes button {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    min-height: 24px !important;
+    place-items: center;
+    padding: 0 !important;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--foreground-muted);
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes .danger,
+  .dashboard-mobile-scope .cliente-mobile-acoes .danger {
+    border-color: color-mix(in srgb, var(--destructive) 30%, transparent);
+    color: var(--destructive);
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-info {
+    align-items: center;
+    gap: 6px;
+    padding: 4px 7px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-avatar {
+    display: grid;
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--primary-muted);
+    color: var(--primary);
+    font-size: 9px !important;
+    font-weight: 700;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-texto {
+    min-width: 0;
+  }
+
+  .dashboard-mobile-scope .mobile-list-empty,
+  .dashboard-mobile-scope .mobile-list-count {
+    padding: 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    color: var(--foreground-muted);
+    font-size: 9px;
+    text-align: center;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child,
+  .dashboard-mobile-scope .clientes-page > div:first-child {
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child button,
+  .dashboard-mobile-scope .clientes-page > div:first-child button {
+    min-height: 30px !important;
+    padding: 4px 9px !important;
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-toolbar {
+    gap: 5px !important;
+    padding-bottom: 5px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-tabs {
+    width: 100%;
+    gap: 10px !important;
+    padding-bottom: 2px;
+  }
+
+  .dashboard-mobile-scope .produtos-tabs button {
+    min-height: 25px !important;
+    padding-bottom: 3px !important;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-filtros {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+    width: 100%;
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-filtros > div {
+    min-width: 0 !important;
+  }
+
+  .dashboard-mobile-scope .produtos-filtros input,
+  .dashboard-mobile-scope .produtos-filtros select,
+  .dashboard-mobile-scope .clientes-filtro input {
+    min-height: 30px !important;
+    height: 30px;
+    padding-block: 3px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-table,
+  .dashboard-mobile-scope .clientes-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+
+  .dashboard-mobile-scope .produtos-table th:nth-child(2),
+  .dashboard-mobile-scope .produtos-table td:nth-child(2),
+  .dashboard-mobile-scope .produtos-table th:nth-child(4),
+  .dashboard-mobile-scope .produtos-table td:nth-child(4),
+  .dashboard-mobile-scope .produtos-table th:nth-child(5),
+  .dashboard-mobile-scope .produtos-table td:nth-child(5) {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .produtos-table th:nth-child(1) { width: 47%; }
+  .dashboard-mobile-scope .produtos-table th:nth-child(3) { width: 20%; }
+  .dashboard-mobile-scope .produtos-table th:nth-child(6) { width: 9%; }
+  .dashboard-mobile-scope .produtos-table th:nth-child(7) { width: 24%; }
+
+  .dashboard-mobile-scope .produtos-table th,
+  .dashboard-mobile-scope .produtos-table td {
+    padding: 5px 4px !important;
+  }
+
+  .dashboard-mobile-scope .produto-cell-nome p {
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-meta,
+  .dashboard-mobile-scope .cliente-mobile-meta {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--foreground-subtle);
+    font-size: 8px !important;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-scope .produto-desktop-unit {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .produtos-table td:last-child > div,
+  .dashboard-mobile-scope .clientes-table td:last-child > div {
+    gap: 2px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-table td:last-child button,
+  .dashboard-mobile-scope .clientes-table td:last-child button {
+    width: 25px;
+    height: 25px;
+    min-height: 25px !important;
+    padding: 4px !important;
+    justify-content: center;
+  }
+
+  /* Clientes: contato junto ao nome; documentos ficam disponíveis no detalhe. */
+  .dashboard-mobile-scope .clientes-tabs {
+    padding: 2px !important;
+  }
+
+  .dashboard-mobile-scope .clientes-tabs button {
+    min-height: 28px !important;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope .clientes-filtro {
+    max-width: none !important;
+  }
+
+  .dashboard-mobile-scope .clientes-table th:nth-child(n+2):not(:last-child),
+  .dashboard-mobile-scope .clientes-table td:nth-child(n+2):not(:last-child) {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .clientes-table th:first-child { width: 70%; }
+  .dashboard-mobile-scope .clientes-table th:last-child { width: 30%; }
+
+  .dashboard-mobile-scope .clientes-table th,
+  .dashboard-mobile-scope .clientes-table td {
+    padding: 5px 6px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-cell-nome > div {
+    gap: 6px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-cell-nome > div > div:first-child {
+    width: 25px !important;
+    height: 25px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-identidade {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .dashboard-mobile-scope .cliente-nome {
+    display: block;
+    overflow: hidden;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Densidade extrema das listas de produtos e clientes. */
+  .dashboard-mobile-scope .produtos-page,
+  .dashboard-mobile-scope .clientes-page {
+    gap: 3px !important;
+    padding: 3px 4px 56px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child,
+  .dashboard-mobile-scope .clientes-page > div:first-child {
+    min-height: 26px;
+    align-items: center !important;
+    gap: 2px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child h2,
+  .dashboard-mobile-scope .clientes-page > div:first-child h2 {
+    font-size: 11px !important;
+    line-height: 1.05 !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child p,
+  .dashboard-mobile-scope .clientes-page > div:first-child p {
+    margin-top: 1px !important;
+    font-size: 7px !important;
+    line-height: 1.05 !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child button,
+  .dashboard-mobile-scope .clientes-page > div:first-child button {
+    min-height: 24px !important;
+    padding: 2px 6px !important;
+    border-radius: 5px !important;
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-page > div:first-child button svg,
+  .dashboard-mobile-scope .clientes-page > div:first-child button svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .dashboard-mobile-scope .produtos-uso-mobile > div {
+    min-height: 26px !important;
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-uso-mobile p,
+  .dashboard-mobile-scope .produtos-uso-mobile span {
+    font-size: 7px !important;
+    line-height: 1 !important;
+  }
+
+  .dashboard-mobile-scope .produtos-toolbar {
+    gap: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-tabs {
+    gap: 6px !important;
+    padding-bottom: 0;
+  }
+
+  .dashboard-mobile-scope .produtos-tabs button {
+    min-height: 19px !important;
+    gap: 2px !important;
+    padding: 1px 0 !important;
+    font-size: 7px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-tabs button svg {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dashboard-mobile-scope .produtos-filtros {
+    gap: 2px !important;
+  }
+
+  .dashboard-mobile-scope .produtos-filtros input,
+  .dashboard-mobile-scope .produtos-filtros select,
+  .dashboard-mobile-scope .clientes-filtro input {
+    height: 24px;
+    min-height: 24px !important;
+    padding-block: 1px !important;
+    font-size: 8px !important;
+    border-radius: 5px !important;
+  }
+
+  .dashboard-mobile-scope .mobile-only-list {
+    gap: 1px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card,
+  .dashboard-mobile-scope .cliente-mobile-card {
+    min-height: 31px;
+    border-radius: 4px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card {
+    grid-template-columns: minmax(0, 1fr) 55px 58px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info,
+  .dashboard-mobile-scope .cliente-mobile-info {
+    min-height: 29px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info {
+    padding: 2px 4px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info strong,
+  .dashboard-mobile-scope .cliente-mobile-texto strong {
+    font-size: 8px;
+    line-height: 1.05;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info small,
+  .dashboard-mobile-scope .cliente-mobile-texto small {
+    margin-top: 1px;
+    font-size: 6px;
+    line-height: 1;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros {
+    padding: 1px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros strong,
+  .dashboard-mobile-scope .produto-mobile-numeros span {
+    font-size: 7px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros span {
+    margin-top: 1px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes,
+  .dashboard-mobile-scope .cliente-mobile-acoes {
+    gap: 1px;
+    padding-right: 1px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes button,
+  .dashboard-mobile-scope .cliente-mobile-acoes button {
+    width: 18px;
+    height: 18px;
+    min-height: 18px !important;
+    border-radius: 3px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes button svg,
+  .dashboard-mobile-scope .cliente-mobile-acoes button svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-info {
+    gap: 3px;
+    padding: 2px 4px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-avatar {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+    font-size: 6px !important;
+  }
+
+  .dashboard-mobile-scope .clientes-tabs {
+    padding: 1px !important;
+    border-radius: 5px !important;
+  }
+
+  .dashboard-mobile-scope .clientes-tabs button {
+    min-height: 21px !important;
+    gap: 2px !important;
+    padding: 1px 5px !important;
+    font-size: 7px !important;
+  }
+
+  .dashboard-mobile-scope .clientes-tabs button svg {
+    width: 9px;
+    height: 9px;
+  }
+
+  .dashboard-mobile-scope .mobile-list-empty,
+  .dashboard-mobile-scope .mobile-list-count {
+    padding: 3px;
+    border-radius: 4px;
+    font-size: 6px;
+  }
+
+  /* Aparência final das listagens mobile: cards legíveis, sem tabela desktop. */
+  .dashboard-mobile-scope .produtos-mobile-list,
+  .dashboard-mobile-scope .clientes-mobile-list {
+    gap: 4px;
+    padding-top: 2px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card,
+  .dashboard-mobile-scope .cliente-mobile-card {
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-elevated);
+    box-shadow: 0 1px 2px color-mix(in srgb, #000 5%, transparent);
+  }
+
+  .dashboard-mobile-scope .produto-mobile-card {
+    grid-template-columns: minmax(0, 1fr) 66px 82px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info,
+  .dashboard-mobile-scope .cliente-mobile-info {
+    min-height: 42px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info {
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info strong,
+  .dashboard-mobile-scope .cliente-mobile-texto strong {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-info small,
+  .dashboard-mobile-scope .cliente-mobile-texto small {
+    margin-top: 2px;
+    font-size: 8px;
+    line-height: 1.15;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros {
+    padding: 3px 4px;
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros strong {
+    color: var(--primary);
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-numeros span {
+    margin-top: 2px;
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes,
+  .dashboard-mobile-scope .cliente-mobile-acoes {
+    gap: 3px;
+    padding-right: 5px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes button,
+  .dashboard-mobile-scope .cliente-mobile-acoes button {
+    width: 24px;
+    height: 24px;
+    min-height: 24px !important;
+    border-radius: 6px;
+  }
+
+  .dashboard-mobile-scope .produto-mobile-acoes button svg,
+  .dashboard-mobile-scope .cliente-mobile-acoes button svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-info {
+    gap: 7px;
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .cliente-mobile-avatar {
+    width: 27px;
+    height: 27px;
+    flex-basis: 27px;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .mobile-list-count {
+    border: 0;
+    background: transparent;
+    color: var(--foreground-subtle);
+    font-size: 8px;
+    text-align: left;
   }
 
   .dashboard-mobile-scope th,

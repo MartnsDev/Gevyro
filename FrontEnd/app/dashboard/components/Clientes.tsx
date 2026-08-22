@@ -1321,6 +1321,7 @@ export default function Clientes() {
 
   return (
     <div
+      className="clientes-page"
       style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}
     >
       {/* Header */}
@@ -1362,6 +1363,7 @@ export default function Clientes() {
 
       {/* Abas */}
       <div
+        className="clientes-tabs"
         style={{
           display: "flex",
           gap: 4,
@@ -1422,7 +1424,7 @@ export default function Clientes() {
       </div>
 
       {/* Filtro */}
-      <div style={{ position: "relative", maxWidth: 360 }}>
+      <div className="clientes-filtro" style={{ position: "relative", maxWidth: 360 }}>
         <Search
           size={13}
           style={{
@@ -1443,6 +1445,7 @@ export default function Clientes() {
 
       {/* Tabela */}
       <div
+        className="clientes-table-card desktop-data-table"
         style={{
           background: "var(--surface-elevated)",
           border: "1px solid var(--border)",
@@ -1450,8 +1453,8 @@ export default function Clientes() {
           overflow: "hidden",
         }}
       >
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="clientes-table-scroll" style={{ overflowX: "auto" }}>
+          <table className="clientes-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <Th k="nome" label="Nome" />
@@ -1577,7 +1580,7 @@ export default function Clientes() {
                       ).style.background = "transparent")
                     }
                   >
-                    <td style={{ padding: "11px 14px" }}>
+                    <td className="cliente-cell-nome" style={{ padding: "11px 14px" }}>
                       <div
                         style={{
                           display: "flex",
@@ -1615,15 +1618,12 @@ export default function Clientes() {
                             {c.nome.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: "var(--foreground)",
-                          }}
-                        >
-                          {c.nome}
-                        </span>
+                        <div className="cliente-identidade">
+                          <span className="cliente-nome" style={{ fontSize: 14, fontWeight: 500, color: "var(--foreground)" }}>{c.nome}</span>
+                          <span className="cliente-mobile-meta">
+                            {[c.telefone, c.email].filter(Boolean).join(" · ") || "Sem contato"}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
@@ -1796,6 +1796,28 @@ export default function Clientes() {
             {lista.length} de {abaLista.length} registro(s)
           </div>
         )}
+      </div>
+
+      <div className="mobile-only-list clientes-mobile-list">
+        {lista.length === 0 ? (
+          <div className="mobile-list-empty">Nenhum {aba === "CLIENTE" ? "cliente" : "fornecedor"} encontrado.</div>
+        ) : lista.map((c) => (
+          <article className="cliente-mobile-card" key={c.id}>
+            <button className="cliente-mobile-info" onClick={() => setModal({ tipo: "detalhe", item: c })}>
+              <span className="cliente-mobile-avatar">{c.nome.charAt(0).toUpperCase()}</span>
+              <span className="cliente-mobile-texto">
+                <strong>{c.nome}</strong>
+                <small>{c.telefone || c.email || "Sem contato informado"}</small>
+              </span>
+            </button>
+            <div className="cliente-mobile-acoes">
+              {aba === "CLIENTE" && <button className={c.deveAlgo ? "danger" : ""} aria-label="Ver dívidas" title="Ver dívidas" onClick={() => setModalDividas(c)}><DollarSign size={13} /></button>}
+              <button aria-label="Editar" title="Editar" onClick={() => setModal({ tipo: "editar", item: c })}><Edit2 size={13} /></button>
+              <button className="danger" aria-label="Excluir" title="Excluir" disabled={deletingId === c.id} onClick={() => handleExcluir(c.id)}><Trash2 size={13} /></button>
+            </div>
+          </article>
+        ))}
+        {lista.length > 0 && <div className="mobile-list-count">{lista.length} de {abaLista.length}</div>}
       </div>
 
       {/* Modais */}
