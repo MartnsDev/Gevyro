@@ -397,7 +397,7 @@ export default function NovaVenda({ caixaId, empresaId, onClose, onConcluido }: 
 
   return (
     <Overlay onClose={onClose}>
-      <div className="animate-fade-in" style={{
+      <div className="animate-fade-in quick-sale-modal" style={{
         background: "var(--surface-elevated)", border: "1px solid var(--border)",
         borderRadius: 18, width: "100%", maxWidth: 1080, maxHeight: "calc(100vh - 24px)",
         display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden",
@@ -421,7 +421,7 @@ export default function NovaVenda({ caixaId, empresaId, onClose, onConcluido }: 
         </div>
 
         {/* Layout em 2 Colunas */}
-        <div className="venda-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(380px, .9fr)", alignItems: "start" }}>
+        <div className="venda-layout quick-sale-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.25fr) minmax(380px, .9fr)", alignItems: "start" }}>
           
           {/* COLUNA ESQUERDA: Busca e Carrinho */}
           <div className="venda-catalogo" style={{ display: "flex", flexDirection: "column", borderRight: "1px solid var(--border)", background: "var(--surface-main)" }}>

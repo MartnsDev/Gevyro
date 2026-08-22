@@ -40,7 +40,7 @@ function ClientOnly({ children }: { children: ReactNode }) {
 
 function ChartCard({ title, subtitle, children, fullWidth, accent }: { title: string; subtitle?: string; children: ReactNode; fullWidth?: boolean; accent?: string; }) {
   return (
-    <div style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 17px", gridColumn: fullWidth ? "1 / -1" : undefined, position: "relative", overflow: "hidden", minWidth: 0 }}>
+    <div className="dashboard-chart-card" style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 17px", gridColumn: fullWidth ? "1 / -1" : undefined, position: "relative", overflow: "hidden", minWidth: 0 }}>
       {accent && <div style={{ position: "absolute", top: 0, left: 16, width: 32, height: 2, background: accent }} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div>
@@ -55,7 +55,7 @@ function ChartCard({ title, subtitle, children, fullWidth, accent }: { title: st
 
 function EmptyChart() {
   return (
-    <div style={{ height: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--foreground-subtle)" }}>
+    <div className="dashboard-empty-chart" style={{ height: 200, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--foreground-subtle)" }}>
       <BarChart3 size={32} style={{ opacity: 0.25 }} />
       <p style={{ fontSize: 13, margin: 0, opacity: 0.5 }}>Sem dados disponíveis</p>
     </div>

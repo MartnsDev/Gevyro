@@ -363,9 +363,9 @@
 
   /* ─── Header ─── */
   .dashboardHeader {
-    padding: 0 12px;
-    height: 52px;
-    gap: 8px;
+    padding: 0 7px;
+    height: 44px;
+    gap: 5px;
   }
 
   .headerBrand {
@@ -383,7 +383,7 @@
   }
 
   .headerUser {
-    gap: 8px;
+    gap: 5px;
     flex-shrink: 0;
   }
 
@@ -393,17 +393,17 @@
 
   .headerUserAvatar,
   .headerUserInitials {
-    width: 32px;
-    height: 32px;
-    font-size: 0.65rem;
-    border-width: 1.5px;
+    width: 27px;
+    height: 27px;
+    font-size: 0.58rem;
+    border-width: 1px;
   }
 
   /* ─── Layout ─── */
   .dashboardLayout {
     flex-direction: column;
-    margin-top: 52px;
-    padding-bottom: 68px;
+    margin-top: 44px;
+    padding-bottom: 56px;
   }
 
   /* ─── Sidebar: oculta — o MobileNav cuida da nav no mobile ─── */
@@ -414,14 +414,14 @@
   /* ─── Main content ─── */
   .mainContent {
     margin-left: 0;
-    min-height: calc(100vh - 52px - 68px);
+    min-height: calc(100vh - 44px - 56px);
     width: 100%;
     overflow-x: hidden;
   }
 
   /* ─── Inner wrapper ─── */
   .mainContentInner {
-    padding: 12px;
+    padding: 7px;
   }
 
   /* ─── Welcome ─── */

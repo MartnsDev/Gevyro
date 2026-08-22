@@ -41,19 +41,19 @@ interface MobileNavProps {
 }
 
 const mainItems: { id: Secao; label: string; icon: React.ReactNode }[] = [
-  { id: "dashboard", label: "Início", icon: <Home size={20} /> },
-  { id: "produtos", label: "Produtos", icon: <Package size={20} /> },
-  { id: "vendas", label: "Vendas", icon: <CreditCard size={20} /> },
-  { id: "clientes", label: "Clientes", icon: <Users size={20} /> },
+  { id: "dashboard", label: "Início", icon: <Home size={17} /> },
+  { id: "produtos", label: "Produtos", icon: <Package size={17} /> },
+  { id: "vendas", label: "Vendas", icon: <CreditCard size={17} /> },
+  { id: "clientes", label: "Clientes", icon: <Users size={17} /> },
 ];
 
 const moreItems: { id: Secao; label: string; icon: React.ReactNode }[] = [
-  { id: "pedidos", label: "Pedidos", icon: <ShoppingBag size={20} /> },
-  { id: "relatorios", label: "Relatórios", icon: <BarChart3 size={20} /> },
-  { id: "notafiscal", label: "Notas fiscais", icon: <FileText size={20} /> },
-  { id: "empresas", label: "Empresas", icon: <Building2 size={20} /> },
-  { id: "configuracoes", label: "Configurações", icon: <Settings size={20} /> },
-  { id: "planos", label: "Planos", icon: <Zap size={20} /> },
+  { id: "pedidos", label: "Pedidos", icon: <ShoppingBag size={17} /> },
+  { id: "relatorios", label: "Relatórios", icon: <BarChart3 size={17} /> },
+  { id: "notafiscal", label: "Notas fiscais", icon: <FileText size={17} /> },
+  { id: "empresas", label: "Empresas", icon: <Building2 size={17} /> },
+  { id: "configuracoes", label: "Configurações", icon: <Settings size={17} /> },
+  { id: "planos", label: "Planos", icon: <Zap size={17} /> },
 ];
 
 export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: MobileNavProps) {
@@ -97,13 +97,13 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
             ref={drawerRef}
             style={{
               position: "absolute",
-              bottom: 68,
-              left: 12,
-              right: 12,
+              bottom: 56,
+              left: 7,
+              right: 7,
               background: "var(--surface-elevated)",
               border: "1px solid var(--border)",
-              borderRadius: 18,
-              padding: "8px 4px 4px",
+              borderRadius: 13,
+              padding: "5px 3px 3px",
               maxHeight: "min(70vh, 560px)",
               overflowY: "auto",
               overscrollBehavior: "contain",
@@ -154,7 +154,7 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
             </div>
 
             {/* Itens do drawer */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "0 8px 8px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, padding: "0 5px 5px" }}>
               {moreItems.map((item) => (
                 <button
                   key={item.id}
@@ -162,19 +162,19 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 14,
-                    padding: "13px 16px",
-                    borderRadius: 12,
+                    gap: 8,
+                    padding: "8px 9px",
+                    borderRadius: 9,
                     border: "none",
                     background: secao === item.id ? "var(--sidebar-active-bg)" : "transparent",
                     color: secao === item.id ? "var(--sidebar-active-fg)" : "var(--foreground)",
-                    fontSize: 15,
+                    fontSize: 11,
                     fontWeight: secao === item.id ? 600 : 400,
                     cursor: "pointer",
                     width: "100%",
                     textAlign: "left",
                     transition: "background 0.12s",
-                    minHeight: 50,
+                    minHeight: 38,
                   }}
                 >
                   <span style={{ color: secao === item.id ? "var(--sidebar-active-fg)" : "var(--foreground-muted)" }}>
@@ -187,27 +187,28 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
               {/* Divider + Logout (só se onLogout for passado) */}
               {onLogout && (
                 <>
-                  <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+                  <div style={{ gridColumn: "1 / -1", height: 1, background: "var(--border)", margin: "3px 0" }} />
                   <button
                     onClick={onLogout}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 14,
-                      padding: "13px 16px",
-                      borderRadius: 12,
+                      gridColumn: "1 / -1",
+                      gap: 8,
+                      padding: "8px 9px",
+                      borderRadius: 9,
                       border: "none",
                       background: "transparent",
                       color: "#ef4444",
-                      fontSize: 15,
+                      fontSize: 11,
                       fontWeight: 500,
                       cursor: "pointer",
                       width: "100%",
                       textAlign: "left",
-                      minHeight: 50,
+                      minHeight: 38,
                     }}
                   >
-                    <LogOut size={20} color="#ef4444" />
+                    <LogOut size={17} color="#ef4444" />
                     Sair da conta
                   </button>
                 </>
@@ -223,7 +224,7 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
           bottom: 0,
           left: 0,
           right: 0,
-          minHeight: 68,
+          minHeight: 56,
           background: "var(--surface)",
           borderTop: "1px solid var(--border)",
           display: "flex",
@@ -246,15 +247,15 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
+                gap: 2,
                 border: "none",
                 background: active ? "var(--sidebar-active-bg)" : "transparent",
                 color: active ? "var(--sidebar-active-fg)" : "var(--foreground-muted)",
-                fontSize: "0.58rem",
+                fontSize: "0.52rem",
                 fontWeight: active ? 600 : 500,
                 cursor: "pointer",
                 borderRadius: 10,
-                margin: "6px 2px",
+                margin: "4px 2px",
                 transition: "background 0.12s, color 0.12s, transform 0.1s",
                 WebkitTapHighlightColor: "transparent",
                 letterSpacing: "0.01em",
@@ -281,15 +282,15 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 4,
+            gap: 2,
             border: "none",
             background: (drawerOpen || isMoreActive) ? "var(--sidebar-active-bg)" : "transparent",
             color: (drawerOpen || isMoreActive) ? "var(--sidebar-active-fg)" : "var(--foreground-muted)",
-            fontSize: "0.58rem",
+            fontSize: "0.52rem",
             fontWeight: (drawerOpen || isMoreActive) ? 600 : 500,
             cursor: "pointer",
             borderRadius: 10,
-            margin: "6px 2px",
+            margin: "4px 2px",
             transition: "background 0.12s, color 0.12s, transform 0.1s",
             WebkitTapHighlightColor: "transparent",
             letterSpacing: "0.01em",
@@ -301,7 +302,7 @@ export default function MobileNav({ secao, onChange, caixaAtivo, onLogout }: Mob
             (e.currentTarget as HTMLElement).style.transform = "scale(1)";
           }}
         >
-          <MoreHorizontal size={20} />
+          <MoreHorizontal size={17} />
           <span style={{ lineHeight: 1 }}>Mais</span>
         </button>
       </nav>

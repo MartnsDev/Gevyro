@@ -36,7 +36,7 @@ export function StatsCard({
   if (loading) {
     return (
       <div
-        className="card-glow"
+        className="card-glow dashboard-stat-card"
         style={{
           background: "var(--surface-elevated)",
           border: "1px solid var(--border)",
@@ -53,7 +53,7 @@ export function StatsCard({
 
   return (
     <div
-      className="card-glow animate-fade-in"
+      className="card-glow dashboard-stat-card animate-fade-in"
       style={{
         background: "var(--surface-elevated)",
         border: "1px solid var(--border)",

@@ -502,7 +502,7 @@ function DashboardInner({
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 12 }}>
           <ThemeToggle compact={isMobile} />
           {/* SeletorEmpresa: oculto no mobile apenas se não houver caixa (simplifica header) */}
           <SeletorEmpresa
@@ -525,17 +525,17 @@ function DashboardInner({
               display: "flex",
               alignItems: "center",
               gap: isMobile ? 5 : 7,
-              padding: isMobile ? "6px 10px" : "7px 14px",
+              padding: isMobile ? "4px 7px" : "7px 14px",
               background: caixaAtivo ? "rgba(16,185,129,0.12)" : "transparent",
               border: `1px solid ${caixaAtivo ? "rgba(16,185,129,0.4)" : "var(--border)"}`,
               borderRadius: 8,
               color: caixaAtivo ? "var(--primary)" : "var(--foreground-muted)",
-              fontSize: isMobile ? 11 : 12,
+              fontSize: isMobile ? 9 : 12,
               fontWeight: 500,
               cursor: "pointer",
               transition: "all .15s",
               whiteSpace: "nowrap",
-              minHeight: 36,
+              minHeight: isMobile ? 29 : 36,
             }}
           >
             {caixaAtivo ? <DollarSign size={14} /> : <Lock size={14} />}

@@ -14,7 +14,7 @@ export function PieChart({ labels, data, formatValue = (value) => value.toLocale
 
   return (
     <div className="dashboard-pie-layout" style={{ display: "grid", gridTemplateColumns: "minmax(180px, .9fr) minmax(150px, 1.1fr)", alignItems: "center", gap: 16, minHeight: 285 }}>
-      <div style={{ position: "relative", width: "100%", height: 230 }}>
+      <div className="dashboard-pie-canvas" style={{ position: "relative", width: "100%", height: 230 }}>
         <ResponsiveContainer width="100%" height="100%">
           <RechartsPieChart>
             <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="58%" outerRadius="82%" paddingAngle={3} cornerRadius={5} stroke="var(--surface-elevated)" strokeWidth={3} animationDuration={750} onMouseLeave={() => setActive(-1)}>

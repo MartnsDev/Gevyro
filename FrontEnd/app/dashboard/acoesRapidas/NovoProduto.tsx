@@ -25,7 +25,7 @@ function Overlay({ onClose, children }: { onClose: () => void; children: ReactNo
 
 function ModalBox({ title, sub, onClose, children }: { title: string; sub?: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="animate-fade-in" style={{
+    <div className="animate-fade-in produto-form-modal" style={{
       background: "var(--surface-elevated)", border: "1px solid var(--border)",
       borderRadius: 14, padding: 28, width: "100%", maxWidth: 560, maxHeight: "92vh", overflowY: "auto",
     }}>
@@ -123,7 +123,7 @@ export default function NovoProduto({ empresaId, onClose, onConcluido }: Props) 
   return (
     <Overlay onClose={onClose}>
       <ModalBox title="Novo Produto" onClose={onClose}>
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <form className="produto-form-compact" onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           
           {/* NOME */}
           <div>

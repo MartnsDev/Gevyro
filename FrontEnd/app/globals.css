@@ -104,6 +104,74 @@
   transition: background-color 9999s ease-out 0s;
 }
 
+/* Entrada discreta do notebook fotorealista no hero. */
+.hero-laptop-stage {
+  isolation: isolate;
+}
+
+.landing-scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.landing-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-laptop-photo {
+  will-change: opacity, transform;
+  animation: hero-laptop-photo-in .9s cubic-bezier(.2,.8,.2,1) .15s both;
+}
+
+.hero-laptop-shadow {
+  position: absolute;
+  z-index: -1;
+  left: 11%;
+  right: 7%;
+  bottom: 8%;
+  height: 12%;
+  border-radius: 999px;
+  background: rgba(21, 48, 35, .16);
+  filter: blur(28px);
+  transform-origin: center;
+  animation: hero-laptop-shadow 1.55s cubic-bezier(.18,.8,.22,1) .18s both;
+}
+
+.hero-laptop-card {
+  opacity: 0;
+  animation: hero-laptop-card-in .65s cubic-bezier(.2,.8,.2,1) 1.35s both;
+}
+
+.hero-laptop-card-delay {
+  animation-delay: 1.52s;
+}
+
+@keyframes hero-laptop-photo-in {
+  from { opacity: 0; transform: translateY(18px) scale(.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes hero-laptop-shadow {
+  0% { opacity: .25; transform: scaleX(.55); }
+  70% { opacity: .85; transform: scaleX(1.04); }
+  100% { opacity: .7; transform: scaleX(1); }
+}
+
+@keyframes hero-laptop-card-in {
+  from { opacity: 0; transform: translateY(14px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-laptop-photo,
+  .hero-laptop-shadow,
+  .hero-laptop-card {
+    animation: none;
+  }
+
+  .hero-laptop-card { opacity: 1; }
+}
+
 [data-theme="light"] {
   color-scheme: light;
 
@@ -323,7 +391,8 @@ button, a, input, select, textarea {
 
   .dashboard-mobile-scope main {
     min-width: 0;
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 
   .dashboard-mobile-scope .empresa-selector {
@@ -351,20 +420,85 @@ button, a, input, select, textarea {
     overflow-y: auto !important;
   }
 
+  .dashboard-mobile-scope main > div[style*="padding: 20px"],
+  .dashboard-mobile-scope main > div[style*="padding:20px"],
   .dashboard-mobile-scope main > div[style*="padding: 28px"],
   .dashboard-mobile-scope main > div[style*="padding:28px"],
   .dashboard-mobile-scope main > div[style*="padding: 24px"],
   .dashboard-mobile-scope main > div[style*="padding:24px"] {
-    padding: 14px 12px 92px !important;
-    gap: 14px !important;
-  }
-
-  .dashboard-mobile-scope main div[style*="grid-template-columns"] {
-    grid-template-columns: minmax(0, 1fr) !important;
+    padding: 8px 7px 64px !important;
+    gap: 7px !important;
   }
 
   .dashboard-mobile-scope .dashboard-primary-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-main-grid,
+  .dashboard-mobile-scope .dashboard-bottom-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card {
+    min-height: 82px !important;
+    gap: 3px !important;
+    padding: 8px 9px 5px !important;
+    border-radius: 9px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card > div:first-child > span {
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card > div:first-child > div {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card > div:nth-child(2) > div:first-child {
+    font-size: 15px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card > div:nth-child(2) > div:not(:first-child) {
+    margin-top: 2px !important;
+    font-size: 7px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-stat-card > div:last-child {
+    height: 20px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-chart-card {
+    padding: 9px 10px !important;
+    border-radius: 9px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-chart-card > div:first-of-type {
+    margin-bottom: 5px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-empty-chart {
+    height: 105px !important;
+  }
+
+  .dashboard-mobile-scope .recharts-responsive-container {
+    max-height: 138px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-chart-canvas {
+    height: 125px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-pie-layout {
+    grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr) !important;
+    gap: 5px !important;
+    min-height: 125px !important;
+  }
+
+  .dashboard-mobile-scope .dashboard-pie-canvas {
+    height: 118px !important;
   }
 
   .dashboard-mobile-scope [style*="justify-content: space-between"] {
@@ -372,22 +506,34 @@ button, a, input, select, textarea {
   }
 
   .dashboard-mobile-scope [style*="position: fixed"][style*="inset: 0"] {
-    padding: 12px !important;
+    padding: 6px !important;
     align-items: flex-end !important;
+  }
+
+  .dashboard-mobile-scope [style*="position: fixed"][style*="inset: 0"][style*="z-index: 50"],
+  .dashboard-mobile-scope [style*="position: fixed"][style*="inset: 0"][style*="z-index: 100"],
+  .dashboard-mobile-scope [style*="position: fixed"][style*="inset: 0"][style*="z-index: 200"] {
+    z-index: 1400 !important;
   }
 
   .dashboard-mobile-scope [style*="position: fixed"][style*="inset: 0"] > div {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: calc(100dvh - 24px) !important;
+    max-height: calc(100dvh - 12px) !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
-    border-radius: 18px 18px 12px 12px !important;
-    padding: 20px 16px !important;
+    border-radius: 13px 13px 9px 9px !important;
+    padding: 12px 10px !important;
   }
 
   .dashboard-mobile-scope table {
-    min-width: 620px;
+    min-width: 500px;
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope th,
+  .dashboard-mobile-scope td {
+    padding: 7px 8px !important;
   }
 
   .dashboard-mobile-scope [style*="overflow-x: auto"] {
@@ -405,6 +551,437 @@ button, a, input, select, textarea {
     min-width: 0;
   }
 
+  .dashboard-mobile-scope main [style*="padding: 22px"],
+  .dashboard-mobile-scope main [style*="padding: 20px"],
+  .dashboard-mobile-scope main [style*="padding: 18px"],
+  .dashboard-mobile-scope main [style*="padding: 16px"] {
+    padding: 10px !important;
+  }
+
+  .dashboard-mobile-scope main [style*="gap: 26px"],
+  .dashboard-mobile-scope main [style*="gap: 24px"],
+  .dashboard-mobile-scope main [style*="gap: 20px"],
+  .dashboard-mobile-scope main [style*="gap: 16px"],
+  .dashboard-mobile-scope main [style*="gap: 14px"],
+  .dashboard-mobile-scope main [style*="gap: 12px"] {
+    gap: 7px !important;
+  }
+
+  /* Vendas e pedidos: densidade máxima apenas em telas pequenas. */
+  .dashboard-mobile-scope .vendas-page,
+  .dashboard-mobile-scope .pedidos-page {
+    padding: 5px 5px 60px !important;
+    gap: 6px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-page > div:first-child,
+  .dashboard-mobile-scope .pedidos-page > div:first-child {
+    align-items: center !important;
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-page > div:first-child p,
+  .dashboard-mobile-scope .pedidos-page > div:first-child p {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .pedidos-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-summary-grid > div {
+    min-width: 0;
+    padding: 6px !important;
+    border-radius: 7px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-summary-grid p:first-child {
+    font-size: 7px !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dashboard-mobile-scope .pedidos-summary-grid p:last-child {
+    font-size: 12px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-filters {
+    flex-wrap: nowrap !important;
+    gap: 3px !important;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .dashboard-mobile-scope .pedidos-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .pedidos-filters > button {
+    flex: 0 0 auto;
+    min-height: 27px !important;
+    padding: 3px 7px !important;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-filters > div {
+    flex: 0 0 130px;
+    margin-left: 0 !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-filters input {
+    min-height: 28px !important;
+    padding-block: 3px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-list-row,
+  .dashboard-mobile-scope .vendas-list-row {
+    min-height: 0 !important;
+    padding: 5px 7px !important;
+    border-radius: 7px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-list-row > div:first-child,
+  .dashboard-mobile-scope .vendas-list-row > div:first-child {
+    min-width: 0;
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-list-row span,
+  .dashboard-mobile-scope .pedidos-list-row p,
+  .dashboard-mobile-scope .vendas-list-row span,
+  .dashboard-mobile-scope .vendas-list-row p {
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .pedidos-list-row > div:last-child span,
+  .dashboard-mobile-scope .vendas-list-row > div:last-child span {
+    font-size: 10px !important;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-card {
+    border-radius: 8px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header {
+    padding: 6px 7px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header > div:first-child {
+    min-width: 0;
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header > div:first-child > div:first-child {
+    display: none !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header p,
+  .dashboard-mobile-scope .vendas-caixa-header span {
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header > div:last-child {
+    gap: 5px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header > div:last-child p:first-child {
+    font-size: 11px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-header button {
+    min-height: 27px !important;
+    padding: 3px 6px !important;
+    font-size: 8px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-caixa-body {
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-resumo-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-resumo-grid > div {
+    padding: 5px 6px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-resumo-grid p:first-child {
+    font-size: 7px !important;
+    letter-spacing: 0 !important;
+  }
+
+  .dashboard-mobile-scope .vendas-resumo-grid p:last-child {
+    font-size: 11px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal,
+  .dashboard-mobile-scope .pedidos-modal {
+    height: calc(100dvh - 12px);
+    max-height: calc(100dvh - 12px) !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal > div:first-child,
+  .dashboard-mobile-scope .pedidos-modal > div:first-child {
+    min-height: 38px;
+    padding: 6px 8px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid,
+  .dashboard-mobile-scope .pedidos-modal-grid {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:first-child,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:first-child {
+    flex: 0 0 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:first-child > div:last-child,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:first-child > div:last-child {
+    min-height: 0 !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:last-child,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:last-child {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:last-child > div:first-child,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:last-child > div:first-child {
+    flex: 0 0 auto !important;
+    min-height: 54px !important;
+    max-height: 105px !important;
+    overflow-y: auto !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:last-child > div:nth-child(2),
+  .dashboard-mobile-scope .pedidos-modal-grid > div:last-child > div:nth-child(2) {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid [style*="padding: 10px 16px"],
+  .dashboard-mobile-scope .pedidos-modal-grid [style*="padding: 10px 16px"] {
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid [style*="padding: 9px 16px"],
+  .dashboard-mobile-scope .pedidos-modal-grid [style*="padding: 10px 16px"] {
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid input,
+  .dashboard-mobile-scope .vendas-modal-grid select,
+  .dashboard-mobile-scope .pedidos-modal-grid input,
+  .dashboard-mobile-scope .pedidos-modal-grid select {
+    min-height: 34px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 10px) !important;
+    padding: 6px !important;
+    border-radius: 9px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal > div:first-child {
+    min-height: 30px;
+    margin-bottom: 4px !important;
+    align-items: center !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal > div:first-child p {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal form,
+  .dashboard-mobile-scope .produto-form-compact {
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal form > div,
+  .dashboard-mobile-scope .produto-form-modal form > label {
+    margin: 0 !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal form [style*="grid-template-columns"] {
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal label,
+  .dashboard-mobile-scope .produto-form-modal form > div > p {
+    margin-bottom: 2px !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal input,
+  .dashboard-mobile-scope .produto-form-modal select,
+  .dashboard-mobile-scope .produto-form-modal textarea {
+    min-height: 28px !important;
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal textarea {
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal [style*="margin-top: 10px"] {
+    margin-top: 3px !important;
+    padding: 4px 6px !important;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal form > div:last-child {
+    gap: 4px !important;
+    margin-top: 1px !important;
+  }
+
+  .dashboard-mobile-scope .produto-form-modal button {
+    min-height: 29px !important;
+    padding: 4px 7px !important;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal {
+    height: calc(100dvh - 10px);
+    max-height: calc(100dvh - 10px) !important;
+    padding: 0 !important;
+    border-radius: 9px !important;
+    overflow-y: auto !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal > div:first-child {
+    min-height: 36px;
+    padding: 4px 7px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal > div:first-child > div > div:first-child {
+    display: none !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal > div:first-child p {
+    display: none;
+  }
+
+  .dashboard-mobile-scope .quick-sale-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo {
+    min-height: 205px !important;
+    height: 205px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo > div:first-child {
+    padding: 4px 6px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo > div:nth-child(2) {
+    max-height: 72px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo > div:nth-child(2) > div {
+    padding: 4px 7px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo > div:nth-child(3) {
+    min-height: 52px !important;
+    max-height: 78px !important;
+    padding: 4px 6px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-catalogo > div:nth-child(3) > div {
+    margin-bottom: 3px !important;
+    padding: 3px 5px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento > div:first-child {
+    gap: 4px !important;
+    padding: 5px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento > div:first-child > div {
+    padding: 5px !important;
+    border-radius: 7px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento button {
+    min-height: 27px !important;
+    padding: 3px 5px !important;
+    font-size: 9px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento input,
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento select {
+    min-height: 28px !important;
+    padding-block: 3px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento > div:last-child {
+    padding: 5px 7px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal .venda-pagamento > div:last-child > div {
+    margin: 2px 0 4px !important;
+    padding-top: 4px !important;
+    font-size: 12px !important;
+  }
+
+  .dashboard-mobile-scope .quick-sale-modal p,
+  .dashboard-mobile-scope .quick-sale-modal span,
+  .dashboard-mobile-scope .vendas-modal p,
+  .dashboard-mobile-scope .vendas-modal span,
+  .dashboard-mobile-scope .pedidos-modal p,
+  .dashboard-mobile-scope .pedidos-modal span {
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:last-child > div,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:last-child > div {
+    padding: 5px 6px !important;
+    gap: 4px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid button,
+  .dashboard-mobile-scope .pedidos-modal-grid button {
+    min-height: 32px !important;
+    padding: 4px 7px !important;
+    font-size: 10px !important;
+  }
+
+  .dashboard-mobile-scope .vendas-modal-grid > div:last-child > div:nth-child(2) > button:last-child,
+  .dashboard-mobile-scope .pedidos-modal-grid > div:last-child > div:nth-child(2) > button:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    min-height: 38px !important;
+    box-shadow: 0 -6px 18px color-mix(in srgb, var(--background) 72%, transparent);
+  }
+
   .dashboard-mobile-scope [style*="display: flex"][style*="gap"] {
     min-width: 0;
   }
@@ -417,6 +994,23 @@ button, a, input, select, textarea {
     overflow-wrap: anywhere;
   }
 
+  .dashboard-mobile-scope main h1 {
+    font-size: 17px !important;
+    line-height: 1.15 !important;
+  }
+
+  .dashboard-mobile-scope main h2 {
+    font-size: 14px !important;
+  }
+
+  .dashboard-mobile-scope main h3 {
+    font-size: 12px !important;
+  }
+
+  .dashboard-mobile-scope main p {
+    line-height: 1.35 !important;
+  }
+
   .dashboard-mobile-scope button,
   .dashboard-mobile-scope a {
     touch-action: manipulation;
@@ -427,14 +1021,15 @@ button, a, input, select, textarea {
   select,
   textarea {
     font-size: 16px !important;
-    min-height: 44px;
-    border-radius: 10px !important;
+    min-height: 36px;
+    padding-block: 6px !important;
+    border-radius: 8px !important;
   }
 
   /* Área mínima clicável para todos os botões */
   button,
   [role="button"] {
-    min-height: 40px;
+    min-height: 34px;
   }
 
   /* Scrollbar fina */

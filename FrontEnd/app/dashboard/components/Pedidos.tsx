@@ -731,7 +731,7 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,padding:16}}
       onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="animate-fade-in" style={{background:"var(--surface-elevated)",border:"1px solid var(--border)",borderRadius:14,width:"100%",maxWidth:900,maxHeight:"95vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div className="animate-fade-in pedidos-modal" style={{background:"var(--surface-elevated)",border:"1px solid var(--border)",borderRadius:14,width:"100%",maxWidth:900,maxHeight:"95vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 20px",borderBottom:"1px solid var(--border)"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <ShoppingBag size={16} color="var(--primary)"/>
@@ -740,7 +740,7 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
           <button onClick={onClose} style={{...btnG,padding:6,border:"none"}}><X size={16}/></button>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 360px",flex:1,minHeight:0,overflow:"hidden"}}>
+        <div className="pedidos-modal-grid" style={{display:"grid",gridTemplateColumns:"1fr 360px",flex:1,minHeight:0,overflow:"hidden"}}>
           <div style={{display:"flex",flexDirection:"column",borderRight:"1px solid var(--border)",overflow:"hidden"}}>
             <div style={{padding:"10px 16px",borderBottom:"1px solid var(--border)"}}>
               <div style={{position:"relative"}}>
@@ -1190,7 +1190,7 @@ export default function Pedidos() {
   );
 
   return(
-    <div style={{padding:28,display:"flex",flexDirection:"column",gap:20}}>
+    <div className="pedidos-page" style={{padding:28,display:"flex",flexDirection:"column",gap:20}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
           <h2 style={{fontSize:18,fontWeight:700,color:"var(--foreground)",margin:0}}>Pedidos</h2>
@@ -1212,7 +1212,7 @@ export default function Pedidos() {
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+      <div className="pedidos-summary-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
         {[
           {label:"Total Faturado", value:fmt(totalBruto), destaque:true},
           {label:"Total Pedidos",  value:String(ativos.length)},
@@ -1251,7 +1251,7 @@ export default function Pedidos() {
 
       {abaAtiva==="pedidos"&&(
         <>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <div className="pedidos-filters" style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             {["TODOS",...Object.keys(STATUS_META)].map(s=>(
               <button key={s} onClick={()=>setFiltroStatus(s)} style={{padding:"5px 12px",borderRadius:99,fontSize:12,fontWeight:500,cursor:"pointer",background:filtroStatus===s?"var(--primary-muted)":"transparent",border:`1px solid ${filtroStatus===s?"var(--primary)":"var(--border)"}`,color:filtroStatus===s?"var(--primary)":"var(--foreground-muted)"}}>
                 {s==="TODOS"?"Todos":STATUS_META[s as StatusPedido].label}
@@ -1275,7 +1275,7 @@ export default function Pedidos() {
                 {pedidosFiltrados.map(p=>{
                   const isAuto = p.observacao?.startsWith("Pedido automático");
                   return (
-                    <div key={p.id} onClick={()=>setDetalhe(p)}
+                    <div className="pedidos-list-row" key={p.id} onClick={()=>setDetalhe(p)}
                       style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"var(--surface-elevated)",border:"1px solid var(--border)",borderRadius:10,cursor:"pointer",transition:"border-color .1s"}}
                       onMouseEnter={e=>((e.currentTarget as HTMLDivElement).style.borderColor="var(--primary)")}
                       onMouseLeave={e=>((e.currentTarget as HTMLDivElement).style.borderColor="var(--border)")}>

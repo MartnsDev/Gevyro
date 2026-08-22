@@ -15,7 +15,7 @@ export function AreaTrendChart({ labels, data, formatValue, height = 245 }: Area
   const chartData = labels.map((name, index) => ({ name, value: data[index] ?? 0 }));
 
   return (
-    <div style={{ width: "100%", height }}>
+    <div className="dashboard-chart-canvas" style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
           <defs>

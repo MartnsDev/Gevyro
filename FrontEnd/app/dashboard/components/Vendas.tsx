@@ -860,7 +860,7 @@ function ModalNovaVenda({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="animate-fade-in"
+        className="animate-fade-in vendas-modal"
         style={{
           background: "var(--surface-elevated)",
           border: "1px solid var(--border)",
@@ -901,6 +901,7 @@ function ModalNovaVenda({
         </div>
 
         <div
+          className="vendas-modal-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 330px",
@@ -2245,6 +2246,7 @@ function CaixaCard({
 
   return (
     <div
+      className="vendas-caixa-card"
       style={{
         background: "var(--surface-elevated)",
         border: `1px solid ${caixa.aberto ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
@@ -2253,6 +2255,7 @@ function CaixaCard({
       }}
     >
       <div
+        className="vendas-caixa-header"
         style={{
           padding: "13px 16px",
           borderBottom: "1px solid var(--border)",
@@ -2382,6 +2385,7 @@ function CaixaCard({
 
       {aberto && (
         <div
+          className="vendas-caixa-body"
           style={{
             padding: "13px 16px",
             display: "flex",
@@ -2390,6 +2394,7 @@ function CaixaCard({
           }}
         >
           <div
+            className="vendas-resumo-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
@@ -2555,6 +2560,7 @@ function CaixaCard({
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               {vendasFiltradas.map((v) => (
                 <div
+                  className="vendas-list-row"
                   key={v.id}
                   onClick={() => setDetalhe(v)}
                   style={{
@@ -2746,6 +2752,7 @@ export default function Vendas() {
 
   return (
     <div
+      className="vendas-page"
       style={{ padding: 28, display: "flex", flexDirection: "column", gap: 20 }}
     >
       <div

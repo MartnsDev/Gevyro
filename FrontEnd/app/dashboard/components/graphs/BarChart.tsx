@@ -26,7 +26,7 @@ export function BarChart({ labels, data, label, color = "blue", formatValue = co
         <div><p style={{ margin: 0, color: "var(--foreground-subtle)", fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase" }}>{label}</p><p style={{ margin: "5px 0 0", color: "var(--foreground)", fontSize: 24, lineHeight: 1, fontWeight: 750, letterSpacing: "-.035em" }}>{formatValue(total)}</p></div>
         <span style={{ color: "var(--foreground-subtle)", fontSize: 11 }}>Total acumulado</span>
       </div>
-      <div style={{ width: "100%", height }}>
+      <div className="dashboard-chart-canvas" style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
           <RechartsBarChart data={chartData} layout={horizontal ? "vertical" : "horizontal"} margin={horizontal ? { top: 4, right: 24, bottom: 0, left: 8 } : { top: 8, right: 8, bottom: 0, left: -14 }} barCategoryGap={horizontal ? "28%" : "34%"}>
             <defs><linearGradient id={`bar-${color}`} x1="0" y1="0" x2={horizontal ? "1" : "0"} y2={horizontal ? "0" : "1"}><stop offset="0%" stopColor={accent} /><stop offset="100%" stopColor={accent} stopOpacity={0.45} /></linearGradient></defs>
