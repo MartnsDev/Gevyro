@@ -9,7 +9,6 @@ import { getUsuario, limparDadosSessaoCliente, login, loginComGoogle, logout, re
 import { useActionCooldown } from "@/hooks/use-action-cooldown";
 
 const AFTER_LOGIN_KEY = "gevyro-request-cookie-consent-after-login";
-const LEGAL_AFTER_LOGIN_KEY = "gevyro-require-legal-ack-after-login";
 
 function GoogleIcon() {
   return (
@@ -65,8 +64,9 @@ export default function LoginPage() {
       setErro(`Aguarde ${loginCooldown.remaining}s antes de tentar entrar novamente.`);
       return;
     }
-    sessionStorage.setItem(AFTER_LOGIN_KEY, "true");
-    sessionStorage.setItem(LEGAL_AFTER_LOGIN_KEY, "true");
+    // Login de conta existente não deve solicitar novamente aceite jurídico
+    // nem interromper o redirecionamento com preferências de primeiro acesso.
+    sessionStorage.removeItem(AFTER_LOGIN_KEY);
     loginComGoogle();
   };
 
@@ -109,7 +109,6 @@ export default function LoginPage() {
       // Evita que uma tentativa OAuth interrompida mantenha uma consulta de
       // sessão pendente a cada nova abertura da página de login.
       sessionStorage.removeItem(AFTER_LOGIN_KEY);
-      sessionStorage.removeItem(LEGAL_AFTER_LOGIN_KEY);
       const message = error instanceof Error ? error.message : "Credenciais inválidas ou erro no servidor";
       setErro(message === "PLANO_INATIVO" ? "Não foi possível iniciar uma nova sessão. Tente novamente." : message);
       setPrecisaConfirmar(message.toLowerCase().includes("confirme seu e-mail"));
@@ -146,7 +145,7 @@ export default function LoginPage() {
           <h1 className="mt-4 text-3xl font-light tracking-[-.04em] text-[#343b37] sm:text-5xl">Bem-vindo <span className="italic text-[#258c53]">de volta</span></h1>
           <p className="mt-4 text-sm leading-6 text-[#718078]">Entre para acompanhar vendas, estoque, caixa e relatórios.</p>
 
-          <button type="button" onClick={handleGoogle} disabled={preparandoSessao||!sessaoPreparada||loading||loginCooldown.blocked} className="mt-9 flex h-12 w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-white text-sm font-medium text-[#46514b] transition hover:border-[#258c53]/40 hover:bg-[#f7faf8] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="button" onClick={handleGoogle} disabled={preparandoSessao||!sessaoPreparada||loading||loginCooldown.blocked} className="mt-9 flex h-[52px] w-full items-center justify-center gap-3 rounded-full border-2 border-[#258c53]/35 bg-[#f7fcf9] text-sm font-bold text-[#244b36] shadow-[0_8px_24px_rgba(37,140,83,.10)] transition hover:-translate-y-0.5 hover:border-[#258c53] hover:bg-[#eff9f3] hover:shadow-[0_10px_28px_rgba(37,140,83,.16)] disabled:cursor-not-allowed disabled:opacity-60">
             <GoogleIcon /> {preparandoSessao || !sessaoPreparada ? "Preparando acesso..." : loginCooldown.blocked?`Aguarde ${loginCooldown.remaining}s` : "Continuar com Google"}
           </button>
           <div className="my-7 flex items-center gap-4"><span className="h-px flex-1 bg-zinc-200" /><span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">ou</span><span className="h-px flex-1 bg-zinc-200" /></div>

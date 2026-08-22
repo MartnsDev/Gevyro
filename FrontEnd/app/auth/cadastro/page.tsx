@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Camera, Check, Eye, EyeOff } from "lucide-react";
 import { cadastrar, loginComGoogle, reenviarConfirmacao } from "@/lib/api-v2";
 
-const LEGAL_ACKNOWLEDGEMENTS_KEY = "gevyro-legal-acknowledgements";
 const AFTER_LOGIN_KEY = "gevyro-request-cookie-consent-after-login";
 
 function GoogleIcon() {
@@ -31,32 +30,8 @@ export default function CadastroPage() {
   const [erro, setErro] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [aceitouDocumentos, setAceitouDocumentos] = useState(false);
   const [reenviando, setReenviando] = useState(false);
   const [avisoReenvio, setAvisoReenvio] = useState("");
-
-  const validarConsentimentos = () => {
-    if (!aceitouDocumentos) {
-      setErro("Confirme a leitura dos Termos de Uso e da Política de Privacidade.");
-      return false;
-    }
-    return true;
-  };
-
-  const registrarCienciaLocal = (email: string) => {
-    let atual: Record<string, object> = {};
-    try {
-      atual = JSON.parse(localStorage.getItem(LEGAL_ACKNOWLEDGEMENTS_KEY) ?? "{}");
-    } catch {
-      localStorage.removeItem(LEGAL_ACKNOWLEDGEMENTS_KEY);
-    }
-    atual[email.trim().toLowerCase()] = {
-      termosVersao: "1.0",
-      privacidadeVersao: "1.0",
-      confirmadoEm: new Date().toISOString(),
-    };
-    localStorage.setItem(LEGAL_ACKNOWLEDGEMENTS_KEY, JSON.stringify(atual));
-  };
 
   const set = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -86,12 +61,10 @@ export default function CadastroPage() {
     if (!form.email.trim()) return setErro("E-mail é obrigatório");
     if (form.senha.length < 8 || !/[A-Za-z]/.test(form.senha) || !/\d/.test(form.senha)) return setErro("A senha precisa ter ao menos 8 caracteres, com letras e números");
     if (form.senha !== form.confirmar) return setErro("As senhas não conferem");
-    if (!validarConsentimentos()) return;
     setLoading(true);
     setErro("");
     try {
       await cadastrar(form.nome, form.email, form.senha, foto || undefined);
-      registrarCienciaLocal(form.email);
       sessionStorage.setItem(AFTER_LOGIN_KEY, "true");
       setSuccess(true);
     } catch (error: unknown) {
@@ -138,7 +111,7 @@ export default function CadastroPage() {
               <h1 className="mt-4 text-3xl font-light tracking-[-.04em] sm:text-5xl">Crie sua <span className="italic text-[#258c53]">conta</span></h1>
               <p className="mt-4 text-sm leading-6 text-[#718078]">Comece sem cartão de crédito e conheça todos os recursos essenciais.</p>
 
-              <button type="button" onClick={() => { if (validarConsentimentos()) { sessionStorage.setItem(AFTER_LOGIN_KEY, "true"); loginComGoogle(); } }} className="mt-7 flex h-[48px] w-full items-center justify-center gap-3 rounded-full border border-zinc-200 bg-white text-sm font-medium text-[#46514b] transition hover:border-[#258c53]/40 hover:bg-[#f7faf8]"><GoogleIcon /> Cadastrar com Google</button>
+              <button type="button" onClick={() => { sessionStorage.setItem(AFTER_LOGIN_KEY, "true"); loginComGoogle(); }} className="mt-7 flex h-[52px] w-full items-center justify-center gap-3 rounded-full border-2 border-[#258c53]/35 bg-[#f7fcf9] text-sm font-bold text-[#244b36] shadow-[0_8px_24px_rgba(37,140,83,.10)] transition hover:-translate-y-0.5 hover:border-[#258c53] hover:bg-[#eff9f3] hover:shadow-[0_10px_28px_rgba(37,140,83,.16)]"><GoogleIcon /> Cadastrar com Google</button>
               <div className="my-6 flex items-center gap-4"><span className="h-px flex-1 bg-zinc-200" /><span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">ou</span><span className="h-px flex-1 bg-zinc-200" /></div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,13 +129,8 @@ export default function CadastroPage() {
                   <label className="block"><span className="mb-2 block text-xs font-semibold text-[#46514b]">Senha</span><span className="relative block"><input type={showPass ? "text" : "password"} value={form.senha} onChange={(event) => set("senha", event.target.value)} autoComplete="new-password" placeholder="8+ caracteres" className="h-[50px] w-full rounded-xl border border-zinc-200 px-4 pr-11 text-sm outline-none transition placeholder:text-zinc-400 focus:border-[#258c53] focus:ring-4 focus:ring-[#258c53]/10" /><button type="button" onClick={() => setShowPass((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}>{showPass ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
                   <label className="block"><span className="mb-2 block text-xs font-semibold text-[#46514b]">Confirmar senha</span><input type={showPass ? "text" : "password"} value={form.confirmar} onChange={(event) => set("confirmar", event.target.value)} autoComplete="new-password" placeholder="Repita a senha" className="h-[50px] w-full rounded-xl border border-zinc-200 px-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-[#258c53] focus:ring-4 focus:ring-[#258c53]/10" /></label>
                 </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 bg-[#f8faf9] p-4 text-xs leading-5 text-[#59665f]">
-                  <input type="checkbox" checked={aceitouDocumentos} onChange={(event) => { setAceitouDocumentos(event.target.checked); setErro(""); }} className="mt-0.5 h-4 w-4 shrink-0 accent-[#258c53]" />
-                  <span>Confirmo que li os <Link href="/termos" target="_blank" className="font-semibold text-[#258c53] underline">Termos de Uso</Link> e a <Link href="/privacidade" target="_blank" className="font-semibold text-[#258c53] underline">Política de Privacidade</Link>.</span>
-                </label>
                 {erro && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{erro}</p>}
                 <button type="submit" disabled={loading} className="flex h-[52px] w-full items-center justify-center gap-3 rounded-full bg-[#258c53] text-sm font-bold text-white transition hover:bg-[#1d7544] disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Criando conta..." : <>Criar conta <ArrowRight size={17} /></>}</button>
-                <p className="text-center text-[11px] leading-5 text-[#718078]">As preferências de cookies opcionais serão solicitadas depois do primeiro login e poderão ser recusadas.</p>
               </form>
               <p className="mt-6 text-center text-sm text-[#718078]">Já tem uma conta? <Link href="/auth/login" className="font-semibold text-[#258c53] hover:underline">Entrar</Link></p>
             </>
