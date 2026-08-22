@@ -20,7 +20,7 @@ public class MailTrapEmail {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("Gevyro <no-reply@gestpro.com>");
+            helper.setFrom("Gevyro <suporte@gevyro.com.br>");
             helper.setTo(emailDestino);
             helper.setSubject("Confirme seu e-mail - Gevyro");
 

@@ -1,6 +1,7 @@
 package br.com.gestpro.auth;
 
 import com.google.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -9,12 +10,20 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @Service
+@Slf4j
 public class EmailService {
 
     @Value("${resend.api.key}")
     private String resendApiKey;
+
+    @Value("${RESEND_FROM_EMAIL:Gevyro <suporte@gevyro.com.br>}")
+    private String resendFromEmail;
+
+    private static final String EMAIL_SUPORTE = "suporte@gevyro.com.br";
 
     private String templateBase(String preheader, String corpoHtml) {
         return """
@@ -76,8 +85,8 @@ public class EmailService {
                         <td align="center" style="padding-top:28px;">
                           <p style="margin:0 0 6px;font-size:12px;color:#4a4a6a;">
                             Precisa de ajuda?
-                            <a href="mailto:suporte@gestpro.site"
-                               style="color:#6c63ff;text-decoration:none;">suporte@gestpro.site</a>
+                            <a href="mailto:%s"
+                               style="color:#6c63ff;text-decoration:none;">%s</a>
                           </p>
                           <p style="margin:0;font-size:11px;color:#333350;">
                             © 2026 Gevyro · Este e-mail é automático, não responda diretamente.
@@ -91,7 +100,7 @@ public class EmailService {
               </table>
             </body>
             </html>
-        """.formatted(preheader, corpoHtml);
+        """.formatted(preheader, corpoHtml, EMAIL_SUPORTE, EMAIL_SUPORTE);
     }
 
     //  FAIXA HERO COLORIDA — topo do card com ícone e título
@@ -122,11 +131,11 @@ public class EmailService {
               <div style="border-top:1px solid #2a2a3a;padding-top:20px;
                           font-size:13px;color:#555570;">
                 Dúvidas? Fale com
-                <a href="mailto:suporte@gestpro.site"
-                   style="color:#6c63ff;text-decoration:none;">suporte@gestpro.site</a>
+                <a href="mailto:%s"
+                   style="color:#6c63ff;text-decoration:none;">%s</a>
               </div>
             </div>
-        """.formatted(nome, body);
+        """.formatted(nome, body, EMAIL_SUPORTE, EMAIL_SUPORTE);
 
         enviarHtml(to, subject, templateBase(body.substring(0, Math.min(80, body.length())), corpo));
     }
@@ -261,13 +270,13 @@ public class EmailService {
 
               <p style="margin:24px 0 0;font-size:12px;color:#555570;line-height:1.6;">
                 Não solicitou este código?
-                <a href="mailto:suporte@gestpro.site"
+                <a href="mailto:%s"
                    style="color:#6c63ff;text-decoration:none;">
                   Entre em contato imediatamente.
                 </a>
               </p>
             </div>
-        """.formatted(nome, digitos.toString(), codigo);
+        """.formatted(nome, digitos.toString(), codigo, EMAIL_SUPORTE);
 
         enviarHtml(emailDestino, "Seu código de verificação · Gevyro",
                 templateBase("Seu código Gevyro: " + codigo + " — expira em 10 minutos.", corpo));
@@ -279,14 +288,16 @@ public class EmailService {
             throw new RuntimeException("RESEND_API_KEY não configurada no ambiente");
         }
         try {
-            String json = """
-                {
-                    "from": "Gevyro <suporte@gestpro.site>",
-                    "to": ["%s"],
-                    "subject": "%s",
-                    "html": %s
-                }
-            """.formatted(to, subject, new Gson().toJson(html));
+            if (resendFromEmail == null || resendFromEmail.isBlank()) {
+                throw new RuntimeException("RESEND_FROM_EMAIL não configurada no ambiente");
+            }
+
+            String json = new Gson().toJson(Map.of(
+                    "from", resendFromEmail.trim(),
+                    "to", List.of(to),
+                    "subject", subject,
+                    "html", html
+            ));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.resend.com/emails"))
@@ -302,10 +313,11 @@ public class EmailService {
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 || response.statusCode() == 201) {
-                System.out.println(
-                        "✅ E-mail aceito pelo Resend | Status: " + response.statusCode()
-                );
+                log.info("E-mail aceito pela Resend: status={}, destinatario={}",
+                        response.statusCode(), mascararEmail(to));
             } else {
+                log.error("Resend recusou o envio: status={}, destinatario={}, resposta={}",
+                        response.statusCode(), mascararEmail(to), response.body());
                 throw new RuntimeException("Resend recusou: " + response.statusCode() + " - " + response.body());
             }
         } catch (RuntimeException e) {
@@ -313,6 +325,14 @@ public class EmailService {
         } catch (Exception e) {
             throw new RuntimeException("Falha ao enviar e-mail: " + e.getMessage(), e);
         }
+    }
+
+    private String mascararEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        int separador = email.indexOf('@');
+        String usuario = email.substring(0, separador);
+        String dominio = email.substring(separador);
+        return usuario.substring(0, Math.min(2, usuario.length())) + "***" + dominio;
     }
 
     //  GERADOR DE CÓDIGO 6 DÍGITOS
