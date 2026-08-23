@@ -39,6 +39,24 @@ public class Empresa {
     @Column(name = "ativa", nullable = false)
     private Boolean ativo = true;
 
+    /**
+     * Compatibilidade temporária com a coluna duplicada criada por uma versão
+     * anterior do mapeamento em bancos que já estavam em produção.
+     */
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Column(name = "ativo", nullable = false)
+    private Boolean ativoCompatibilidade = true;
+
+    @PrePersist
+    @PreUpdate
+    private void sincronizarColunasDeStatus() {
+        if (ativo == null) {
+            ativo = true;
+        }
+        ativoCompatibilidade = ativo;
+    }
+
     // Dados CNPJ
     @Column(name = "razao_social")
     private String razaoSocial;
