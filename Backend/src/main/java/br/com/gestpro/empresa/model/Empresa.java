@@ -33,7 +33,10 @@ public class Empresa {
     @Column(name = "tipo_plano", nullable = false)
     private TipoPlano plano;
 
-    @Column(name = "ativo", nullable = false)
+    // A base de produção usa historicamente a coluna `ativa`. Manter o nome
+    // explícito evita o Hibernate criar `ativo` em paralelo e deixar a coluna
+    // legada obrigatória sem valor durante o INSERT.
+    @Column(name = "ativa", nullable = false)
     private Boolean ativo = true;
 
     // Dados CNPJ
