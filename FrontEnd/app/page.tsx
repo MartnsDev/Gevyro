@@ -228,10 +228,32 @@ function MobileSection() {
           </ul>
           <Link href="/auth/login" className="mt-6 inline-flex h-12 w-full items-center justify-center gap-3 rounded-full bg-[#087f47] px-6 text-[11px] font-bold uppercase tracking-[.07em] text-white sm:mt-8 sm:w-auto">{copy.action}<ArrowRight size={16} /></Link>
         </div>
-        <div className="order-1 mx-auto w-full max-w-[430px] md:order-2">
-          <div className="relative mx-auto w-[62%] min-w-[210px] max-w-[280px] rounded-[34px] border-[8px] border-[#17231d] bg-[#17231d] p-1 shadow-[0_30px_65px_rgba(35,70,51,.22)]">
-            <span className="absolute left-1/2 top-2 z-10 h-1.5 w-14 -translate-x-1/2 rounded-full bg-black/80" />
-            <div className="relative aspect-[9/17] overflow-hidden rounded-[23px] bg-white"><Image src="/images/landing/gevyro-mobile-dashboard-clean.webp" alt="Dashboard responsivo da Gevyro em um celular" fill className="object-cover object-top" sizes="280px" /></div>
+        <div className="order-1 mx-auto w-full max-w-[500px] md:order-2">
+          <div className="relative mx-auto flex min-h-[500px] items-center justify-center sm:min-h-[650px]">
+            <div className="absolute h-[330px] w-[330px] rounded-full bg-[radial-gradient(circle,#d6eee0_0%,rgba(214,238,224,.45)_48%,transparent_72%)] blur-sm sm:h-[460px] sm:w-[460px]" />
+            <div className="absolute right-[4%] top-[8%] grid grid-cols-5 gap-3 opacity-50">{Array.from({ length: 20 }).map((_, index) => <span key={index} className="h-1 w-1 rounded-full bg-[#258c53]" />)}</div>
+            <div className="absolute bottom-[14%] left-[3%] h-24 w-24 rounded-full border border-[#258c53]/15 sm:h-36 sm:w-36" />
+
+            <div className="absolute left-[1%] top-[26%] z-20 rounded-2xl border border-white/80 bg-white/95 px-3 py-3 shadow-[0_15px_40px_rgba(38,73,53,.13)] backdrop-blur sm:left-[-2%] sm:px-4 sm:py-4">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#e7f7ed] text-[#16834c]"><BarChart3 size={15} /></span>
+              <strong className="mt-2 block text-[11px] text-[#26312b] sm:text-xs">Resultados na mão</strong>
+              <small className="mt-1 block text-[9px] text-[#718078] sm:text-[10px]">Acompanhe de qualquer lugar</small>
+            </div>
+
+            <div className="absolute bottom-[18%] right-[-1%] z-20 rounded-2xl border border-white/80 bg-white/95 px-3 py-3 shadow-[0_15px_40px_rgba(38,73,53,.13)] backdrop-blur sm:right-[-4%] sm:px-4 sm:py-4">
+              <span className="flex items-center gap-2 text-[10px] font-semibold text-[#26312b] sm:text-[11px]"><span className="h-2 w-2 rounded-full bg-[#19b568] shadow-[0_0_0_4px_rgba(25,181,104,.12)]" />Operação atualizada</span>
+              <span className="mt-2 block h-1.5 w-28 overflow-hidden rounded-full bg-[#e3ebe6]"><span className="block h-full w-[78%] rounded-full bg-[#1a9b5b]" /></span>
+            </div>
+
+            <div className="relative z-10 mx-auto w-[78%] min-w-[270px] max-w-[365px] rounded-[42px] border border-[#3d4843] bg-[#101714] p-[8px] shadow-[0_45px_90px_rgba(24,54,37,.25),0_14px_32px_rgba(24,54,37,.18)] sm:rounded-[48px] sm:p-[10px]">
+              <span className="absolute -left-[5px] top-24 h-14 w-[3px] rounded-l-full bg-[#35413b]" />
+              <span className="absolute -left-[5px] top-44 h-9 w-[3px] rounded-l-full bg-[#35413b]" />
+              <span className="absolute -right-[5px] top-36 h-20 w-[3px] rounded-r-full bg-[#35413b]" />
+              <div className="relative aspect-[951/1654] overflow-hidden rounded-[34px] bg-white sm:rounded-[38px]">
+                <Image src="/images/landing/gevyro-mobile-dashboard-clean.webp" alt="Dashboard responsivo da Gevyro em um celular" fill className="object-contain object-top" sizes="365px" quality={95} />
+                <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,.13),transparent_28%,transparent_78%,rgba(255,255,255,.06))]" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

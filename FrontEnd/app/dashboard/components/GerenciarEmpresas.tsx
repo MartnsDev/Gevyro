@@ -82,6 +82,12 @@ const formatarDocumento = (valor: string) => {
 
 const documentoEmpresa = (empresa: Empresa) => empresa.cnpj || empresa.cpf || "";
 
+// O DTO do backend mantém um único campo `cnpj` por compatibilidade, mas ele
+// aceita tanto CPF (11 dígitos) quanto CNPJ (14 dígitos).
+const campoDocumento = (valor?: string | null) => ({
+  cnpj: digitosDocumento(valor) || null,
+});
+
 const todosDigitosIguais = (digitos: string) => /^(\d)\1+$/.test(digitos);
 
 const cpfValido = (cpf: string) => {
@@ -417,7 +423,7 @@ export default function GerenciarEmpresas({ onEmpresaSelecionada, modoSelecao }:
       const targetEmpresa = empresas.find(e => e.id === id);
       const bodyClean = {
           nomeFantasia: editForm.nomeFantasia,
-          cnpj: digitosDocumento(editForm.cnpj) || null,
+          ...campoDocumento(editForm.cnpj),
           ativo: targetEmpresa?.ativo 
       };
 
@@ -452,13 +458,19 @@ export default function GerenciarEmpresas({ onEmpresaSelecionada, modoSelecao }:
     try {
       await fetchAuth("/api/v1/empresas", {
         method: "POST",
-        body: JSON.stringify({ ...form, nomeFantasia: form.nomeFantasia.trim(), cnpj: digitosDocumento(form.cnpj) || null }),
+        body: JSON.stringify({
+          nomeFantasia: form.nomeFantasia.trim(),
+          ...campoDocumento(form.cnpj),
+        }),
       });
       ok("Empresa cadastrada com sucesso!");
       setForm({ nomeFantasia: "", cnpj: "" });
       setCriando(false);
       setAbaAtiva("ativas");
       await carregar();
+      // Atualiza também o contexto global, o seletor superior e os limites do
+      // plano sem exigir que o usuário saiba recarregar a página manualmente.
+      window.location.reload();
     } catch (e: any) {
       setErro(e.message);
     } finally {
@@ -476,7 +488,7 @@ export default function GerenciarEmpresas({ onEmpresaSelecionada, modoSelecao }:
 
   const handleRestaurar = async (emp: Empresa) => {
       try {
-          const bodyClean = { nomeFantasia: emp.nomeFantasia, cnpj: documentoEmpresa(emp) || null, ativo: true };
+          const bodyClean = { nomeFantasia: emp.nomeFantasia, ...campoDocumento(documentoEmpresa(emp)), ativo: true };
           await fetchAuth(`/api/v1/empresas/${emp.id}`, { method: "PUT", body: JSON.stringify(bodyClean) });
           setEmpresas(prev => prev.map(e => e.id === emp.id ? { ...e, ativo: true } : e));
           toast.success("Empresa restaurada com sucesso!");
