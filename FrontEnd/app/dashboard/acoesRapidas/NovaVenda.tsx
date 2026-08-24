@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { useEmpresa } from "../context/Empresacontext"; // Para pegar o nome da empresa pro cupom
 import { fetchAuthJson } from "@/lib/api-v2";
+import { prepararSomDeVenda } from "@/lib/som-venda";
 
 interface Produto { id: number; nome: string; preco: number; quantidadeEstoque: number; categoria?: string }
 interface ItemCarrinho { produto: Produto; quantidade: number }
@@ -340,6 +341,7 @@ export default function NovaVenda({ caixaId, empresaId, onClose, onConcluido }: 
     if (misto && valPag2N >= total) { toast.error("Informe apenas a parte paga na 2ª forma. Ela precisa ser menor que o total para sobrar valor na 1ª forma."); return; }
     if (temDinheiro && recebidoN > 0 && recebidoN < valorEmDinheiro) { toast.error(`Faltam ${fmt(valorEmDinheiro - recebidoN)} no pagamento em dinheiro.`); return; }
     
+    const tocarSomDeVenda = prepararSomDeVenda();
     setSalvando(true);
     try {
       const body: any = {
@@ -360,7 +362,8 @@ export default function NovaVenda({ caixaId, empresaId, onClose, onConcluido }: 
         method: "POST",
         body: JSON.stringify(body),
       }));
-      
+
+      tocarSomDeVenda();
       toast.success("Venda finalizada com sucesso!");
       
       // Adiciona o nome do produto de volta aos itens para o cupom não quebrar

@@ -12,6 +12,7 @@ import {
   Zap, Star, RefreshCw, TrendingUp, Lock
 } from "lucide-react";
 import { toast } from "sonner";
+import { prepararSomDeVenda } from "@/lib/som-venda";
 
 interface Produto { id:number; nome:string; preco:number; quantidadeEstoque:number; categoria?:string }
 interface Cliente { id:number; nome:string; ativo?:boolean }
@@ -710,6 +711,7 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
     if(contaDestino.trim().length>100){toast.error("A conta de destino deve ter até 100 caracteres.");return;}
     if(endereco.trim().length>300){toast.error("O endereço deve ter até 300 caracteres.");return;}
     if(observacao.trim().length>500){toast.error("A observação deve ter até 500 caracteres.");return;}
+    const tocarSomDeVenda = prepararSomDeVenda();
     setSalvando(true);
     try{
       const pedido=await fetchAuth<Pedido>(`/api/v1/pedidos/empresa/${empresaId}`,{
@@ -723,6 +725,7 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
           itens:carrinho.map(i=>({idProduto:i.produto.id,quantidade:i.quantidade})),
         }),
       });
+      tocarSomDeVenda();
       onClose();onSucesso(pedido);
     }catch(e:any){toast.error(e.message);}
     finally{setSalvando(false);}

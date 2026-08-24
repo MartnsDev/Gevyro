@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchAuthJson as apiFetchAuthJson } from "@/lib/api-v2";
+import { prepararSomDeVenda } from "@/lib/som-venda";
 
 interface Produto {
   id: number;
@@ -810,6 +811,7 @@ function ModalNovaVenda({
       toast.error("Informe apenas a parte paga na 2ª forma. Ela precisa ser menor que o total para sobrar valor na 1ª forma.");
       return;
     }
+    const tocarSomDeVenda = prepararSomDeVenda();
     setSalvando(true);
     try {
       const body: any = {
@@ -835,6 +837,7 @@ function ModalNovaVenda({
         method: "POST",
         body: JSON.stringify(body),
       }));
+      tocarSomDeVenda();
       onClose();
       onSucesso(venda);
     } catch (e: any) {
