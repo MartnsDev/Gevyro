@@ -2046,19 +2046,6 @@ function DetalheVenda({
           </div>
         )}
 
-        <button
-          onClick={() => gerarCupom(venda, nomeEmpresa, documentoEmpresa)}
-          style={{
-            ...btnG,
-            width: "100%",
-            justifyContent: "center",
-            borderColor: "rgba(59,130,246,0.3)",
-            color: "#3b82f6",
-          }}
-        >
-          <Receipt size={13} /> Imprimir nota da venda
-        </button>
-
         {/* Cancelar */}
         {!venda.cancelada &&
           !editandoObs &&
@@ -2139,9 +2126,21 @@ function DetalheVenda({
           ) : (
             <div style={{ display: "flex", gap: 8 }}>
               <button
+                onClick={() => gerarCupom(venda, nomeEmpresa, documentoEmpresa)}
+                style={{
+                  flex: 1,
+                  ...btnG,
+                  justifyContent: "center",
+                  borderColor: "rgba(59,130,246,0.4)",
+                  color: "#3b82f6",
+                }}
+              >
+                <Receipt size={13} /> Cupom
+              </button>
+              <button
                 onClick={() => setCancelando(true)}
                 style={{
-                  width: "100%",
+                  flex: 1,
                   ...btnG,
                   justifyContent: "center",
                   borderColor: "rgba(239,68,68,0.3)",
@@ -2152,6 +2151,22 @@ function DetalheVenda({
               </button>
             </div>
           ))}
+        {/* Cupom mesmo para venda cancelada */}
+        {venda.cancelada && (
+          <button
+            onClick={() => gerarCupom(venda, nomeEmpresa, documentoEmpresa)}
+            style={{
+              ...btnG,
+              width: "100%",
+              justifyContent: "center",
+              borderColor: "rgba(59,130,246,0.3)",
+              color: "#3b82f6",
+              marginTop: 4,
+            }}
+          >
+            <Receipt size={13} /> Imprimir Cupom
+          </button>
+        )}
       </div>
     </div>
   );
