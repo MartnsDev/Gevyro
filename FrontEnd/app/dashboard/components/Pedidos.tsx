@@ -670,6 +670,52 @@ function SecaoIntegracoes({empresaId}:{empresaId:number}) {
   );
 }
 
+function TelaPedidoSucesso({pedido,onFechar}:{pedido:Pedido;onFechar:()=>void}) {
+  const [passo,setPasso]=useState<"sucesso"|"nota">("sucesso");
+
+  useEffect(()=>{
+    if(passo!=="sucesso")return;
+    const timer=setTimeout(()=>setPasso("nota"),5000);
+    return()=>clearTimeout(timer);
+  },[passo]);
+
+  if(passo==="nota")return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div className="animate-fade-in" style={{background:"var(--surface-elevated)",border:"1px solid var(--border)",borderRadius:20,padding:36,textAlign:"center",maxWidth:340,width:"100%"}}>
+        <div style={{width:60,height:60,borderRadius:"50%",background:"rgba(59,130,246,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+          <Printer size={28} color="#3b82f6"/>
+        </div>
+        <h2 style={{fontSize:18,fontWeight:700,color:"var(--foreground)",margin:"0 0 8px"}}>Deseja imprimir a nota?</h2>
+        <p style={{fontSize:13,color:"var(--foreground-muted)",marginBottom:24}}>Nota não fiscal do pedido <strong style={{color:"var(--foreground)"}}>#{pedido.id}</strong></p>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onFechar} style={{flex:1,padding:"11px 0",background:"transparent",border:"1px solid var(--border)",borderRadius:10,color:"var(--foreground-muted)",fontSize:14,fontWeight:600,cursor:"pointer"}}>Não</button>
+          <button onClick={()=>{imprimirPedido(pedido);onFechar();}} style={{flex:2,padding:"11px 0",background:"#3b82f6",border:"none",borderRadius:10,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <Printer size={16}/> Sim, imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+      <div className="animate-fade-in" style={{background:"var(--surface-elevated)",border:"1px solid rgba(16,185,129,0.3)",borderRadius:20,padding:36,textAlign:"center",maxWidth:360,width:"100%"}}>
+        <div style={{width:68,height:68,borderRadius:"50%",background:"rgba(16,185,129,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+          <CheckCircle2 size={34} color="var(--primary)"/>
+        </div>
+        <h2 style={{fontSize:20,fontWeight:700,color:"var(--foreground)",margin:"0 0 6px"}}>Pedido Registrado!</h2>
+        <p style={{fontSize:30,fontWeight:800,color:"var(--primary)",margin:"0 0 6px"}}>{fmt(pedido.valorFinal)}</p>
+        <span style={{display:"inline-block",fontSize:12,padding:"3px 10px",background:"var(--primary-muted)",color:"var(--primary)",borderRadius:99,fontWeight:500,marginBottom:10}}>
+          {FORMA_LABEL[pedido.formaPagamento]??pedido.formaPagamento}
+        </span>
+        <p style={{fontSize:12,color:"var(--foreground-subtle)",margin:"0 0 20px"}}>Pedido #{pedido.id} · {pedido.itens.length} item(s)</p>
+        <button onClick={()=>setPasso("nota")} style={{...btnP,justifyContent:"center",width:"100%",padding:"11px 0"}}>Continuar</button>
+        <p style={{fontSize:11,color:"var(--foreground-subtle)",margin:"10px 0 0"}}>Perguntará sobre a impressão em 5s</p>
+      </div>
+    </div>
+  );
+}
+
 function ModalNovoPedido({empresaId,onClose,onSucesso}:{
   empresaId:number;onClose:()=>void;onSucesso:(p:Pedido)=>void;
 }) {
@@ -687,6 +733,7 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
   const [endereco,setEndereco]=useState("");
   const [observacao,setObservacao]=useState("");
   const [salvando,setSalvando]=useState(false);
+  const [pedidoSucesso,setPedidoSucesso]=useState<Pedido|null>(null);
 
   useEffect(()=>{
     let ignore=false;
@@ -756,10 +803,12 @@ function ModalNovoPedido({empresaId,onClose,onSucesso}:{
         }),
       });
       tocarSomDeVenda();
-      onClose();onSucesso(pedido);
+      onSucesso(pedido);setPedidoSucesso(pedido);
     }catch(e:any){toast.error(e.message);}
     finally{setSalvando(false);}
   };
+
+  if(pedidoSucesso)return <TelaPedidoSucesso pedido={pedidoSucesso} onFechar={onClose}/>;
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50,padding:16}}
