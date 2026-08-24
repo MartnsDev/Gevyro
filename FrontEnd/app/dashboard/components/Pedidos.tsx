@@ -9,7 +9,7 @@ import {
   DollarSign, CreditCard, ShoppingBag, Truck, CheckCircle2,
   Clock, Ban, Edit2, Package, Trash2, AlertTriangle,
   Tag, MapPin, Wallet, ChevronDown, Link2, Link2Off,
-  Zap, Star, RefreshCw, TrendingUp, Lock
+  Zap, Star, RefreshCw, TrendingUp, Lock, Printer
 } from "lucide-react";
 import { toast } from "sonner";
 import { prepararSomDeVenda } from "@/lib/som-venda";
@@ -145,6 +145,36 @@ function AutoBadge() {
       <Zap size={9}/> automático
     </span>
   );
+}
+
+const escaparHtml = (valor:unknown) => String(valor??"")
+  .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+  .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+
+function imprimirPedido(pedido:Pedido) {
+  const itens=pedido.itens.map(item=>`
+    <tr>
+      <td>${escaparHtml(item.nomeProduto)}<small>${item.quantidade} × ${escaparHtml(fmt(item.precoUnitario))}</small></td>
+      <td class="right">${escaparHtml(fmt(item.subtotal))}</td>
+    </tr>`).join("");
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+    <title>Pedido #${pedido.id}</title><style>
+      @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:0;padding:24px;background:#f4f6f8}
+      .nota{max-width:760px;margin:auto;background:#fff;padding:32px;border:1px solid #dfe4ea}.topo{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #172033;padding-bottom:18px}
+      h1{font-size:22px;margin:0 0 5px}.empresa{font-size:16px;font-weight:700}.muted,small{display:block;color:#667085;font-size:11px;margin-top:3px}.status{font-size:12px;font-weight:700;text-transform:uppercase;text-align:right}
+      .dados{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin:20px 0;font-size:12px}.dados strong{color:#344054}table{width:100%;border-collapse:collapse;margin-top:12px}th{font-size:10px;text-transform:uppercase;color:#667085;text-align:left;border-bottom:1px solid #d0d5dd;padding:8px 4px}td{font-size:12px;padding:10px 4px;border-bottom:1px solid #eaecf0}.right{text-align:right}
+      .totais{width:310px;margin:18px 0 0 auto}.linha{display:flex;justify-content:space-between;font-size:12px;padding:4px 0}.total{font-size:17px;font-weight:800;border-top:2px solid #172033;margin-top:5px;padding-top:9px}.bloco{font-size:12px;margin-top:18px;padding:12px;background:#f8fafc;white-space:pre-wrap}.rodape{text-align:center;color:#98a2b3;font-size:10px;margin-top:28px}.print{display:block;margin:20px auto 0;padding:10px 22px;border:0;border-radius:7px;background:#10b981;color:#fff;font-weight:700;cursor:pointer}
+      @media print{body{padding:0;background:#fff}.nota{border:0;padding:0}.print{display:none}}
+    </style></head><body><main class="nota">
+      <header class="topo"><div><div class="empresa">${escaparHtml(pedido.nomeEmpresa||"Empresa")}</div><h1>Pedido #${pedido.id}</h1><span class="muted">Documento de pedido — não fiscal</span></div><div class="status">${escaparHtml(STATUS_META[pedido.status as StatusPedido]?.label??pedido.status)}<span class="muted">${escaparHtml(fmtData(pedido.dataPedido))}</span></div></header>
+      <section class="dados"><div><strong>Cliente:</strong> ${escaparHtml(pedido.nomeCliente||"Não informado")}</div><div><strong>Canal:</strong> ${escaparHtml(CANAIS.find(c=>c.value===pedido.canalVenda)?.label??pedido.canalVenda)}</div><div><strong>Pagamento:</strong> ${escaparHtml(FORMA_LABEL[pedido.formaPagamento]??pedido.formaPagamento)}</div>${pedido.contaDestino?`<div><strong>Conta:</strong> ${escaparHtml(pedido.contaDestino)}</div>`:""}</section>
+      <table><thead><tr><th>Produto</th><th class="right">Valor</th></tr></thead><tbody>${itens}</tbody></table>
+      <section class="totais"><div class="linha"><span>Subtotal</span><span>${escaparHtml(fmt(pedido.valorTotal))}</span></div>${pedido.desconto>0?`<div class="linha"><span>Desconto</span><span>− ${escaparHtml(fmt(pedido.desconto))}</span></div>`:""}${pedido.custoFrete>0?`<div class="linha"><span>Frete</span><span>+ ${escaparHtml(fmt(pedido.custoFrete))}</span></div>`:""}<div class="linha total"><span>Total</span><span>${escaparHtml(fmt(pedido.valorFinal))}</span></div></section>
+      ${pedido.enderecoEntrega?`<div class="bloco"><strong>Endereço de entrega</strong><br>${escaparHtml(pedido.enderecoEntrega)}</div>`:""}${pedido.observacao?`<div class="bloco"><strong>Observações</strong><br>${escaparHtml(pedido.observacao)}</div>`:""}${pedido.motivoCancelamento?`<div class="bloco"><strong>Motivo do cancelamento</strong><br>${escaparHtml(pedido.motivoCancelamento)}</div>`:""}
+      <footer class="rodape">Emitido via Gevyro</footer></main><button class="print" onclick="window.print()">Imprimir / Salvar PDF</button><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
+  const janela=window.open("","_blank","width=850,height=800");
+  if(!janela){toast.error("Permita pop-ups para imprimir o pedido.");return;}
+  janela.document.write(html);janela.document.close();
 }
 
 function SeletorStatus({statusAtual,onChange,salvando}:{
@@ -1050,6 +1080,10 @@ function DetalhePedido({pedido,onClose,onAtualizado,onRemovido}:{
               <strong>Motivo:</strong> {pedido.motivoCancelamento}
             </div>
           )}
+
+          <button onClick={()=>imprimirPedido(pedido)} style={{...btnG,justifyContent:"center",width:"100%"}}>
+            <Printer size={14}/> Imprimir nota do pedido
+          </button>
 
           {podeCancelar&&!cancelando&&!editandoObs&&(
             <button onClick={()=>setCancelando(true)} style={{...btnDanger,justifyContent:"center"}}>
