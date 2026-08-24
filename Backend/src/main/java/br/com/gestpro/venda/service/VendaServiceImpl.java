@@ -61,6 +61,9 @@ public class VendaServiceImpl implements VendaServiceInterface {
         if (dto.getIdCliente() != null)
             cliente = clienteRepository.findById(dto.getIdCliente())
                     .orElseThrow(() -> new ApiException("Cliente não encontrado", HttpStatus.NOT_FOUND, "/api/v1/vendas/registrar"));
+        if (cliente != null && (cliente.getEmpresa() == null
+                || !cliente.getEmpresa().getId().equals(caixa.getEmpresa().getId())))
+            throw new ApiException("Cliente não pertence à empresa deste caixa.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
 
         Venda venda = new Venda();
         venda.setUsuario(usuario);
@@ -77,7 +80,7 @@ public class VendaServiceImpl implements VendaServiceInterface {
         BigDecimal total = BigDecimal.ZERO;
 
         for (RegistrarVendaDTO.ItemVendaDTO itemDTO : dto.getItens()) {
-            Produto produto = produtoRepository.findById(itemDTO.getIdProduto())
+            Produto produto = produtoRepository.findByIdForUpdate(itemDTO.getIdProduto())
                     .orElseThrow(() -> new ApiException("Produto não encontrado: " + itemDTO.getIdProduto(), HttpStatus.NOT_FOUND, "/api/v1/vendas/registrar"));
 
             if (produto.getEmpresa() == null || !produto.getEmpresa().getId().equals(caixa.getEmpresa().getId()))
@@ -102,12 +105,18 @@ public class VendaServiceImpl implements VendaServiceInterface {
             itens.add(iv);
         }
 
+        if (total.compareTo(BigDecimal.ZERO) <= 0)
+            throw new ApiException("A venda precisa ter valor maior que zero.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
+
         venda.setItens(itens);
 
         //  Desconto normalizado — null nunca chega ao banco
         BigDecimal desconto = dto.getDesconto() != null
                 ? dto.getDesconto().max(BigDecimal.ZERO)
                 : BigDecimal.ZERO;
+
+        if (desconto.compareTo(total) >= 0)
+            throw new ApiException("O desconto deve ser menor que o subtotal da venda.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
 
         venda.setTotal(total);
         venda.setDesconto(desconto);
@@ -148,7 +157,8 @@ public class VendaServiceImpl implements VendaServiceInterface {
 
         // Devolve estoque
         venda.getItens().forEach(item -> {
-            Produto p = item.getProduto();
+            Produto p = produtoRepository.findByIdForUpdate(item.getProduto().getId())
+                    .orElseThrow(() -> new ApiException("Produto não encontrado", HttpStatus.NOT_FOUND, "/api/v1/vendas/" + id));
             p.setQuantidadeEstoque(p.getQuantidadeEstoque() + item.getQuantidade());
             produtoRepository.save(p);
         });
@@ -181,14 +191,24 @@ public class VendaServiceImpl implements VendaServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Venda> listarPorCaixa(Long idCaixa) {
+    public List<Venda> listarPorCaixa(Long idCaixa, String emailUsuario) {
+        Caixa caixa = caixaRepository.findById(idCaixa)
+                .orElseThrow(() -> new ApiException("Caixa não encontrado", HttpStatus.NOT_FOUND, "/api/v1/vendas/caixa/" + idCaixa));
+        validarUsuarioDaVenda(caixa.getUsuario().getEmail(), emailUsuario, "/api/v1/vendas/caixa/" + idCaixa);
         return vendaRepository.findByCaixaId(idCaixa);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Venda buscarPorId(Long id) {
-        return vendaRepository.findById(id)
+    public Venda buscarPorId(Long id, String emailUsuario) {
+        Venda venda = vendaRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Venda não encontrada", HttpStatus.NOT_FOUND, "/api/v1/vendas/"));
+        validarUsuarioDaVenda(venda.getUsuario().getEmail(), emailUsuario, "/api/v1/vendas/" + id);
+        return venda;
+    }
+
+    private void validarUsuarioDaVenda(String emailProprietario, String emailUsuario, String path) {
+        if (!emailProprietario.equalsIgnoreCase(emailUsuario))
+            throw new ApiException("Sem permissão.", HttpStatus.FORBIDDEN, path);
     }
 }

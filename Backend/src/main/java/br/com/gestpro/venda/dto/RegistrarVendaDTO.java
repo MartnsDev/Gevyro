@@ -2,6 +2,7 @@ package br.com.gestpro.venda.dto;
 
 import br.com.gestpro.caixa.FormaDePagamento;
 import jakarta.validation.constraints.*;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class RegistrarVendaDTO {
     private Long idCliente;
 
     @NotEmpty(message = "Lista de itens não pode ser vazia")
+    @Valid
     private List<ItemVendaDTO> itens;
 
     // Pagamento principal (obrigatório)
@@ -38,6 +40,7 @@ public class RegistrarVendaDTO {
     @PositiveOrZero(message = "Desconto não pode ser negativo")
     private BigDecimal desconto;
 
+    @Size(max = 500, message = "Observação deve ter no máximo 500 caracteres")
     private String observacao;
 
     @Data

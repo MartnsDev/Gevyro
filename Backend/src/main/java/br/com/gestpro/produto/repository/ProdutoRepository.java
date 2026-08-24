@@ -5,13 +5,20 @@ import br.com.gestpro.auth.model.Usuario;
 import br.com.gestpro.produto.model.Produto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Produto p WHERE p.id = :id")
+    Optional<Produto> findByIdForUpdate(@Param("id") Long id);
 
     // Consulta mantida para integrações antigas.
     List<Produto> findByUsuario(Usuario usuario);

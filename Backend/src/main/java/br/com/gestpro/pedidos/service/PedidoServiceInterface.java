@@ -25,7 +25,7 @@ public interface PedidoServiceInterface {
     List<Pedido> listarPorEmpresa(Long empresaId, String emailUsuario);
 
     /** Busca um pedido pelo ID */
-    Pedido buscarPorId(Long id);
+    Pedido buscarPorId(Long id, String emailUsuario);
 
     /**
      * Remove um único pedido do histórico (exclusão física).

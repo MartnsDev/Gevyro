@@ -73,8 +73,10 @@ public class PedidoController {
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
-    public ResponseEntity<PedidoResponseDTO> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(new PedidoResponseDTO(pedidoService.buscarPorId(id)));
+    public ResponseEntity<PedidoResponseDTO> buscarPorId(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(new PedidoResponseDTO(
+                pedidoService.buscarPorId(id, authentication.getName())));
     }
 
     @PatchMapping("/{id}/status")

@@ -62,6 +62,9 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
         if (dto.getIdCliente() != null)
             cliente = clienteRepository.findById(dto.getIdCliente())
                     .orElseThrow(() -> new ApiException("Cliente não encontrado", HttpStatus.NOT_FOUND, PATH));
+        if (cliente != null && (cliente.getEmpresa() == null
+                || !cliente.getEmpresa().getId().equals(empresa.getId())))
+            throw new ApiException("Cliente não pertence a esta empresa.", HttpStatus.BAD_REQUEST, PATH);
 
         Pedido pedido = new Pedido();
         pedido.setUsuario(usuario);
@@ -79,7 +82,7 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
         BigDecimal total = BigDecimal.ZERO;
 
         for (RegistrarPedidoDTO.ItemPedidoDTO itemDTO : dto.getItens()) {
-            Produto produto = produtoRepository.findById(itemDTO.getIdProduto())
+            Produto produto = produtoRepository.findByIdForUpdate(itemDTO.getIdProduto())
                     .orElseThrow(() -> new ApiException(
                             "Produto não encontrado: " + itemDTO.getIdProduto(), HttpStatus.NOT_FOUND, PATH));
 
@@ -107,11 +110,17 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
             itens.add(ip);
         }
 
+        if (total.compareTo(BigDecimal.ZERO) <= 0)
+            throw new ApiException("O pedido precisa ter valor maior que zero.", HttpStatus.BAD_REQUEST, PATH);
+
         pedido.setItens(itens);
 
         BigDecimal desconto = dto.getDesconto() != null
                 ? dto.getDesconto().max(BigDecimal.ZERO)
                 : BigDecimal.ZERO;
+
+        if (desconto.compareTo(total) >= 0)
+            throw new ApiException("O desconto deve ser menor que o subtotal do pedido.", HttpStatus.BAD_REQUEST, PATH);
 
         pedido.setValorTotal(total);
         pedido.setDesconto(desconto);
@@ -136,6 +145,8 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
             throw new ApiException("Pedido cancelado não pode ser alterado.", HttpStatus.BAD_REQUEST, PATH);
         if (novoStatus == StatusPedido.CANCELADO)
             return cancelarPedido(id, null, emailUsuario);
+        if (!transicaoPermitida(pedido.getStatus(), novoStatus))
+            throw new ApiException("Transição de status não permitida.", HttpStatus.BAD_REQUEST, PATH);
         pedido.setStatus(novoStatus);
         return pedidoRepository.save(pedido);
     }
@@ -147,10 +158,13 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
         Pedido pedido = buscarComPermissao(id, emailUsuario);
         if (pedido.getStatus() == StatusPedido.CANCELADO)
             throw new ApiException("Pedido já cancelado.", HttpStatus.BAD_REQUEST, PATH);
+        if (pedido.getStatus() == StatusPedido.ENTREGUE)
+            throw new ApiException("Pedido entregue não pode ser cancelado.", HttpStatus.BAD_REQUEST, PATH);
 
         // Devolve estoque
         pedido.getItens().forEach(item -> {
-            Produto p = item.getProduto();
+            Produto p = produtoRepository.findByIdForUpdate(item.getProduto().getId())
+                    .orElseThrow(() -> new ApiException("Produto não encontrado", HttpStatus.NOT_FOUND, PATH));
             p.setQuantidadeEstoque(p.getQuantidadeEstoque() + item.getQuantidade());
             produtoRepository.save(p);
         });
@@ -177,6 +191,8 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
     @Transactional
     public void removerPedido(Long id, String emailUsuario) {
         Pedido pedido = buscarComPermissao(id, emailUsuario);
+        if (pedido.getStatus() != StatusPedido.ENTREGUE && pedido.getStatus() != StatusPedido.CANCELADO)
+            throw new ApiException("Finalize ou cancele o pedido antes de removê-lo.", HttpStatus.CONFLICT, PATH);
         pedidoRepository.delete(pedido);
         log.info("Pedido id={} removido do histórico por {}.", id, emailUsuario);
     }
@@ -192,6 +208,9 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
             throw new ApiException("Sem permissão.", HttpStatus.FORBIDDEN, PATH);
 
         List<Pedido> todos = pedidoRepository.findByEmpresaIdOrderByDataPedidoDesc(empresaId);
+        if (todos.stream().anyMatch(p -> p.getStatus() != StatusPedido.ENTREGUE
+                && p.getStatus() != StatusPedido.CANCELADO))
+            throw new ApiException("Existem pedidos ativos no histórico.", HttpStatus.CONFLICT, PATH);
         pedidoRepository.deleteAll(todos);
         log.info("Histórico de pedidos da empresa {} limpo por {}.", empresaId, emailUsuario);
     }
@@ -209,16 +228,29 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public Pedido buscarPorId(Long id) {
+    public Pedido buscarPorId(Long id, String emailUsuario) {
+        return buscarComPermissao(id, emailUsuario);
+    }
+
+    private Pedido buscarSemValidarPermissao(Long id) {
         return pedidoRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Pedido não encontrado", HttpStatus.NOT_FOUND, PATH));
     }
 
 
     private Pedido buscarComPermissao(Long id, String emailUsuario) {
-        Pedido pedido = buscarPorId(id);
+        Pedido pedido = buscarSemValidarPermissao(id);
         if (!pedido.getUsuario().getEmail().equals(emailUsuario))
             throw new ApiException("Sem permissão para este pedido.", HttpStatus.FORBIDDEN, PATH);
         return pedido;
+    }
+
+    private boolean transicaoPermitida(StatusPedido atual, StatusPedido novoStatus) {
+        return switch (atual) {
+            case PENDENTE -> novoStatus == StatusPedido.CONFIRMADO;
+            case CONFIRMADO -> novoStatus == StatusPedido.ENVIADO || novoStatus == StatusPedido.ENTREGUE;
+            case ENVIADO -> novoStatus == StatusPedido.ENTREGUE;
+            case ENTREGUE, CANCELADO -> false;
+        };
     }
 }

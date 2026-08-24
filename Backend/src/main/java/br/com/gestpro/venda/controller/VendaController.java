@@ -5,6 +5,7 @@ import br.com.gestpro.venda.dto.VendaResponseDTO;
 import br.com.gestpro.venda.model.Venda;
 import br.com.gestpro.venda.service.VendaServiceInterface;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -23,7 +24,7 @@ public class VendaController {
 
     @PostMapping("/registrar")
     public ResponseEntity<VendaResponseDTO> registrarVenda(
-            @RequestBody RegistrarVendaDTO dto,
+            @Valid @RequestBody RegistrarVendaDTO dto,
             Authentication authentication) {
         dto.setEmailUsuario(authentication.getName());
         Venda venda = vendaService.registrarVenda(dto);
@@ -32,17 +33,20 @@ public class VendaController {
 
     @GetMapping("/caixa/{idCaixa}")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<VendaResponseDTO>> listarPorCaixa(@PathVariable Long idCaixa) {
+    public ResponseEntity<List<VendaResponseDTO>> listarPorCaixa(
+            @PathVariable Long idCaixa, Authentication authentication) {
         return ResponseEntity.ok(
-                vendaService.listarPorCaixa(idCaixa)
+                vendaService.listarPorCaixa(idCaixa, authentication.getName())
                         .stream().map(VendaResponseDTO::new).toList()
         );
     }
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
-    public ResponseEntity<VendaResponseDTO> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(new VendaResponseDTO(vendaService.buscarPorId(id)));
+    public ResponseEntity<VendaResponseDTO> buscarPorId(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(new VendaResponseDTO(
+                vendaService.buscarPorId(id, authentication.getName())));
     }
 
     /** Cancela uma venda e devolve o estoque */
