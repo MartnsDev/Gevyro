@@ -46,17 +46,14 @@ public class WebhookController {
             @RequestHeader(value = "Authorization", defaultValue = "") String authorization) {
 
         log.info("Webhook Shopee recebido");
+        if (rawBody == null || rawBody.length == 0) {
+            return ResponseEntity.badRequest().build();
+        }
         try {
-            if (rawBody == null || rawBody.length == 0) {
-                log.warn("Webhook Shopee recebido com corpo vazio");
-                return ResponseEntity.ok().build();
-            }
             JsonNode payload = objectMapper.readTree(rawBody);
             shopeeService.processar(rawBody, authorization, payload);
-        } catch (Exception e) {
-            // Logamos o erro mas retornamos 200 para evitar que a Shopee
-            // fique reenviando o mesmo evento indefinidamente.
-            log.error("Erro ao processar webhook Shopee: {}", e.getMessage(), e);
+        } catch (java.io.IOException exception) {
+            return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok().build();
     }
@@ -72,11 +69,7 @@ public class WebhookController {
             @RequestBody JsonNode payload) {
 
         log.info("Webhook ML recebido topic={}", payload.path("topic").asText());
-        try {
-            mlService.processar(xSignature, xRequestId, payload);
-        } catch (Exception e) {
-            log.error("Erro ao processar webhook ML: {}", e.getMessage(), e);
-        }
+        mlService.processar(xSignature, xRequestId, payload);
         return ResponseEntity.ok().build();
     }
 }

@@ -3,6 +3,7 @@ package br.com.gestpro.marketplace.controller;
 import br.com.gestpro.marketplace.model.MarketplaceConnection;
 import br.com.gestpro.marketplace.model.MarketplaceProductLink;
 import br.com.gestpro.marketplace.service.MarketplaceConnectionService;
+import br.com.gestpro.marketplace.service.OAuthStateService;
 import br.com.gestpro.pedidos.CanalVenda;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class MarketplaceConnectionController {
     private static final Logger log = LoggerFactory.getLogger(MarketplaceConnectionController.class);
 
     private final MarketplaceConnectionService service;
+    private final OAuthStateService oauthStateService;
 
     @Value("${app.frontend.url}")
     private String urlFrontend;
@@ -41,7 +43,7 @@ public class MarketplaceConnectionController {
     /**
      * Shopee OAuth callback.
      * painel: https://minha-api.com/api/v1/marketplace/callback/shopee
-     * state deve ter o formato: "empresaId=<id>"
+     * state opaco, temporário e de uso único, criado pelo backend.
      */
     @GetMapping("/callback/shopee")
     public void callbackShopee(
@@ -51,8 +53,8 @@ public class MarketplaceConnectionController {
             HttpServletResponse response) throws IOException {
 
         try {
-            Long empresaId = extrairEmpresaId(state);
-            service.processarCallbackShopee(empresaId, code, shop_id);
+            OAuthStateService.DadosState dados = oauthStateService.consumir(state);
+            service.processarCallbackShopee(dados.empresaId(), dados.emailUsuario(), code, shop_id);
             response.sendRedirect(urlFrontend + "/dashboard/pedidos?sucesso=true");
         } catch (Exception e) {
             log.error("Erro no callback Shopee: {}", e.getMessage(), e);
@@ -63,7 +65,7 @@ public class MarketplaceConnectionController {
     /**
      * Mercado Livre OAuth callback.
      * https://minhaAPI.com/api/v1/marketplace/callback/mercadolivre
-     * state deve ter o formato: "empresaId=<id>"
+     * state opaco, temporário e de uso único, criado pelo backend.
      */
     @GetMapping("/callback/mercadolivre")
     public void callbackMercadoLivre(
@@ -72,9 +74,9 @@ public class MarketplaceConnectionController {
             HttpServletResponse response) throws IOException {
 
         try {
-            Long empresaId = extrairEmpresaId(state);
+            OAuthStateService.DadosState dados = oauthStateService.consumir(state);
             String redirectUri = urlApi + "/api/v1/marketplace/callback/mercadolivre";
-            service.processarCallbackMercadoLivre(empresaId, code, redirectUri);
+            service.processarCallbackMercadoLivre(dados.empresaId(), dados.emailUsuario(), code, redirectUri);
             response.sendRedirect(urlFrontend + "/dashboard/pedidos?sucesso=true");
         } catch (Exception e) {
             log.error("Erro no callback Mercado Livre: {}", e.getMessage(), e);
@@ -116,6 +118,13 @@ public class MarketplaceConnectionController {
         return ResponseEntity.ok(service.listarConexoes(empresaId, auth.getName()));
     }
 
+    @GetMapping("/empresa/{empresaId}/oauth-state")
+    public ResponseEntity<OAuthStateResponse> criarOAuthState(
+            @PathVariable Long empresaId, Authentication auth) {
+        service.validarAcessoEmpresa(empresaId, auth.getName());
+        return ResponseEntity.ok(new OAuthStateResponse(oauthStateService.criar(empresaId, auth.getName())));
+    }
+
 
     @PostMapping("/empresa/{empresaId}/vinculos")
     public ResponseEntity<MarketplaceProductLink> vincular(
@@ -151,11 +160,7 @@ public class MarketplaceConnectionController {
     }
 
 
-    private Long extrairEmpresaId(String state) {
-        if (state == null || !state.startsWith("empresaId="))
-            throw new IllegalArgumentException("Parâmetro 'state' ausente ou inválido: " + state);
-        return Long.parseLong(state.replace("empresaId=", "").trim());
-    }
+    public record OAuthStateResponse(String state) {}
 
 
     @Getter @Setter

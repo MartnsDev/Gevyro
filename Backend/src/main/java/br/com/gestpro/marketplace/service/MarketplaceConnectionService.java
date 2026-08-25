@@ -174,7 +174,8 @@ public class MarketplaceConnectionService {
      * Documentação: https://open.shopee.com/documents?module=87&type=2&id=58
      */
     @Transactional
-    public void processarCallbackShopee(Long empresaId, String code, String shopId) {
+    public void processarCallbackShopee(Long empresaId, String emailUsuario, String code, String shopId) {
+        buscarEmpresaComPermissao(empresaId, emailUsuario);
         log.info("Processando callback Shopee: empresaId={} shopId={}", empresaId, shopId);
 
         // CORREÇÃO: shopId vem de @RequestParam(required = false) no controller,
@@ -226,7 +227,8 @@ public class MarketplaceConnectionService {
      * @param redirectUri deve ser idêntica à cadastrada no painel do app ML.
      */
     @Transactional
-    public void processarCallbackMercadoLivre(Long empresaId, String code, String redirectUri) {
+    public void processarCallbackMercadoLivre(Long empresaId, String emailUsuario, String code, String redirectUri) {
+        buscarEmpresaComPermissao(empresaId, emailUsuario);
         log.info("Processando callback Mercado Livre: empresaId={}", empresaId);
 
         @SuppressWarnings("unchecked")
@@ -289,6 +291,11 @@ public class MarketplaceConnectionService {
         if (!empresa.getDono().getEmail().equals(emailUsuario))
             throw new ApiException("Sem permissão para esta empresa.", HttpStatus.FORBIDDEN, PATH);
         return empresa;
+    }
+
+    @Transactional(readOnly = true)
+    public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
+        buscarEmpresaComPermissao(empresaId, emailUsuario);
     }
 
     private void validarMarketplaceSuportado(CanalVenda marketplace) {

@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/produtos")
@@ -23,7 +24,7 @@ public class ProdutoController {
 
     @PostMapping
     public ResponseEntity<ProdutoResponseDTO> criar(
-            @RequestBody CriarProdutoDTO dto,
+            @Valid @RequestBody CriarProdutoDTO dto,
             Authentication authentication) {
         dto.setEmailUsuario(authentication.getName());
         Produto produto = produtoService.criar(dto);
@@ -37,7 +38,7 @@ public class ProdutoController {
             Authentication authentication) {
         List<Produto> produtos;
         if (empresaId != null) {
-            produtos = produtoService.listarPorEmpresa(empresaId);
+            produtos = produtoService.listarPorEmpresa(empresaId, authentication.getName());
         } else {
             produtos = produtoService.listarPorEmail(authentication.getName());
         }
@@ -45,14 +46,14 @@ public class ProdutoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProdutoResponseDTO> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(new ProdutoResponseDTO(produtoService.buscarPorId(id)));
+    public ResponseEntity<ProdutoResponseDTO> buscarPorId(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(new ProdutoResponseDTO(produtoService.buscarPorId(id, authentication.getName())));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ProdutoResponseDTO> atualizar(
             @PathVariable Long id,
-            @RequestBody CriarProdutoDTO dto,
+            @Valid @RequestBody CriarProdutoDTO dto,
             Authentication authentication) {
         dto.setEmailUsuario(authentication.getName());
         return ResponseEntity.ok(new ProdutoResponseDTO(produtoService.atualizar(id, dto)));

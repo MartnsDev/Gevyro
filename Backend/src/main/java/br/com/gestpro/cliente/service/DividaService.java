@@ -12,6 +12,7 @@ import br.com.gestpro.infra.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,13 +26,21 @@ public class DividaService {
     private final ClienteRepository clienteRepository;
     private final EmpresaRepository empresaRepository;
 
-    public DividaDTO criar(DividaRequest req) {
+    @Transactional
+    public DividaDTO criar(DividaRequest req, String emailUsuario) {
         Cliente cliente = clienteRepository.findById(req.getClienteId())
                 .orElseThrow(() -> new ApiException("Cliente não encontrado",
                         HttpStatus.NOT_FOUND, "/dividas"));
         Empresa empresa = empresaRepository.findById(req.getEmpresaId())
                 .orElseThrow(() -> new ApiException("Empresa não encontrada",
                         HttpStatus.NOT_FOUND, "/dividas"));
+        validarAcesso(empresa, emailUsuario, "/dividas");
+        if (!cliente.getEmpresa().getId().equals(empresa.getId()))
+            throw new ApiException("Cliente não pertence à empresa informada",
+                    HttpStatus.BAD_REQUEST, "/dividas");
+        if (req.getValor() == null || req.getValor().signum() <= 0)
+            throw new ApiException("O valor da dívida deve ser maior que zero",
+                    HttpStatus.BAD_REQUEST, "/dividas");
 
         Divida d = new Divida();
         d.setCliente(cliente);
@@ -43,16 +52,30 @@ public class DividaService {
         return new DividaDTO(dividaRepository.save(d));
     }
 
-    public List<DividaDTO> listarPorCliente(Long clienteId) {
+    @Transactional(readOnly = true)
+    public List<DividaDTO> listarPorCliente(Long clienteId, String emailUsuario) {
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new ApiException("Cliente não encontrado",
+                        HttpStatus.NOT_FOUND, "/dividas/cliente/" + clienteId));
+        validarAcesso(cliente.getEmpresa(), emailUsuario, "/dividas/cliente/" + clienteId);
         return dividaRepository
                 .findByClienteIdOrderByStatusAscCriadoEmDesc(clienteId)
                 .stream().map(DividaDTO::new).toList();
     }
 
-    public DividaDTO registrarPagamento(Long id, BigDecimal valor) {
+    @Transactional
+    public DividaDTO registrarPagamento(Long id, BigDecimal valor, String emailUsuario) {
         Divida d = dividaRepository.findById(id)
                 .orElseThrow(() -> new ApiException("Dívida não encontrada",
                         HttpStatus.NOT_FOUND, "/dividas/" + id));
+        validarAcesso(d.getEmpresa(), emailUsuario, "/dividas/" + id);
+        if (valor == null || valor.signum() <= 0)
+            throw new ApiException("O pagamento deve ser maior que zero",
+                    HttpStatus.BAD_REQUEST, "/dividas/" + id);
+        BigDecimal saldo = d.getValor().subtract(d.getValorPago());
+        if (valor.compareTo(saldo) > 0)
+            throw new ApiException("O pagamento não pode exceder o saldo da dívida",
+                    HttpStatus.BAD_REQUEST, "/dividas/" + id);
 
         BigDecimal novoPago = d.getValorPago().add(valor);
         d.setValorPago(novoPago);
@@ -67,7 +90,17 @@ public class DividaService {
         return new DividaDTO(dividaRepository.save(d));
     }
 
-    public void excluir(Long id) {
-        dividaRepository.deleteById(id);
+    @Transactional
+    public void excluir(Long id, String emailUsuario) {
+        Divida divida = dividaRepository.findById(id)
+                .orElseThrow(() -> new ApiException("Dívida não encontrada",
+                        HttpStatus.NOT_FOUND, "/dividas/" + id));
+        validarAcesso(divida.getEmpresa(), emailUsuario, "/dividas/" + id);
+        dividaRepository.delete(divida);
+    }
+
+    private void validarAcesso(Empresa empresa, String emailUsuario, String path) {
+        if (!empresa.getDono().getEmail().equals(emailUsuario))
+            throw new ApiException("Sem permissão para esta empresa", HttpStatus.FORBIDDEN, path);
     }
 }

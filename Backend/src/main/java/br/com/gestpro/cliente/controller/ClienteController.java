@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/clientes")
@@ -20,7 +21,7 @@ public class ClienteController {
 
     @PostMapping
     public ResponseEntity<ClienteDTO> criar(
-            @RequestBody ClienteRequest req,
+            @Valid @RequestBody ClienteRequest req,
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.criar(req, authentication.getName()));
@@ -29,14 +30,14 @@ public class ClienteController {
     @PutMapping("/{id}")
     public ResponseEntity<ClienteDTO> atualizar(
             @PathVariable Long id,
-            @RequestBody ClienteRequest req,
+            @Valid @RequestBody ClienteRequest req,
             Authentication authentication) {
         return ResponseEntity.ok(service.atualizar(id, req, authentication.getName()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteDTO> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(service.buscarPorId(id));
+    public ResponseEntity<ClienteDTO> buscarPorId(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(service.buscarPorId(id, authentication.getName()));
     }
 
     @GetMapping
@@ -45,9 +46,9 @@ public class ClienteController {
             @RequestParam(required = false) String tipo,
             Authentication authentication) {
         if (empresaId != null && tipo != null)
-            return ResponseEntity.ok(service.listarPorEmpresaETipo(empresaId, tipo));
+            return ResponseEntity.ok(service.listarPorEmpresaETipo(empresaId, tipo, authentication.getName()));
         if (empresaId != null)
-            return ResponseEntity.ok(service.listarPorEmpresa(empresaId));
+            return ResponseEntity.ok(service.listarPorEmpresa(empresaId, authentication.getName()));
         return ResponseEntity.ok(service.listarAtivos(authentication.getName()));
     }
 
@@ -61,7 +62,7 @@ public class ClienteController {
 
     @PostMapping("/criar")
     public ResponseEntity<ClienteDTO> criarLegado(
-            @RequestBody ClienteRequest req,
+            @Valid @RequestBody ClienteRequest req,
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.criar(req, authentication.getName()));
@@ -71,13 +72,13 @@ public class ClienteController {
     public ResponseEntity<List<ClienteDTO>> listarLegado(
             @RequestParam(required = false) Long empresaId,
             Authentication authentication) {
-        if (empresaId != null) return ResponseEntity.ok(service.listarPorEmpresa(empresaId));
+        if (empresaId != null) return ResponseEntity.ok(service.listarPorEmpresa(empresaId, authentication.getName()));
         return ResponseEntity.ok(service.listarAtivos(authentication.getName()));
     }
 
     @DeleteMapping("/desativar/{id}")
-    public ResponseEntity<Void> desativarLegado(@PathVariable Long id) {
-        service.desativarCliente(id);
+    public ResponseEntity<Void> desativarLegado(@PathVariable Long id, Authentication authentication) {
+        service.desativar(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }

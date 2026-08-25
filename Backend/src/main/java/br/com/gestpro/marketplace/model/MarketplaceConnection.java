@@ -4,6 +4,7 @@ import br.com.gestpro.empresa.model.Empresa;
 import br.com.gestpro.pedidos.CanalVenda;
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 
@@ -45,10 +46,12 @@ public class MarketplaceConnection {
     private String sellerId;
 
     @Column(name = "access_token", nullable = false, length = 2000)
+    @JsonIgnore
     private String accessToken;
 
     /** Presente apenas em marketplaces que suportam renovação (ML, Shopee) */
     @Column(name = "refresh_token", length = 2000)
+    @JsonIgnore
     private String refreshToken;
 
     /** Momento em que o access_token expira — null = não expira */

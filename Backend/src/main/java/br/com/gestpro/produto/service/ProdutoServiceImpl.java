@@ -139,10 +139,8 @@ public class ProdutoServiceImpl implements ProdutoServiceInterface {
     }
     @Override
     @Transactional(readOnly = true)
-    public List<Produto> listarPorEmpresa(Long empresaId) {
-        Empresa empresa = empresaRepository.findById(empresaId)
-                .orElseThrow(() -> new ApiException(
-                        "Empresa não encontrada", HttpStatus.NOT_FOUND, "/api/v1/produtos"));
+    public List<Produto> listarPorEmpresa(Long empresaId, String emailUsuario) {
+        Empresa empresa = buscarEmpresa(empresaId, emailUsuario);
         return produtoRepository.findByEmpresa(empresa);
     }
 
@@ -154,10 +152,12 @@ public class ProdutoServiceImpl implements ProdutoServiceInterface {
 
     @Override
     @Transactional(readOnly = true)
-    public Produto buscarPorId(Long id) {
-        return produtoRepository.findById(id)
+    public Produto buscarPorId(Long id, String emailUsuario) {
+        Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new ApiException(
                         "Produto não encontrado", HttpStatus.NOT_FOUND, "/api/v1/produtos/" + id));
+        buscarEmpresa(produto.getEmpresa().getId(), emailUsuario);
+        return produto;
     }
 
     @Override @Transactional(readOnly = true)

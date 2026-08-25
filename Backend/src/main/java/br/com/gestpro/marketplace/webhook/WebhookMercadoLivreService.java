@@ -19,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.security.MessageDigest;
+import java.time.Instant;
 
 /**
  * Adapter para o webhook do Mercado Livre.
@@ -83,12 +85,14 @@ public class WebhookMercadoLivreService {
         try {
             String ts = extrairCampoSignature(xSignature, "ts");
             String v1 = extrairCampoSignature(xSignature, "v1");
+            validarTimestamp(ts);
 
             String mensagem = "id:" + orderId + ";request-id:" + xRequestId + ";ts:" + ts;
             String hmacCalculado = calcularHmac(mensagem, mlSecretKey);
 
-            if (!hmacCalculado.equalsIgnoreCase(v1)) {
-                log.warn("Assinatura ML inválida. Esperado: {} Recebido: {}", hmacCalculado, v1);
+            if (!MessageDigest.isEqual(hmacCalculado.getBytes(StandardCharsets.US_ASCII),
+                    v1.toLowerCase().getBytes(StandardCharsets.US_ASCII))) {
+                log.warn("Assinatura ML inválida");
                 throw new ApiException("Assinatura inválida.", HttpStatus.UNAUTHORIZED, "/webhook/mercadolivre");
             }
         } catch (ApiException e) {
@@ -96,6 +100,18 @@ public class WebhookMercadoLivreService {
         } catch (Exception e) {
             log.error("Erro ao validar assinatura ML", e);
             throw new ApiException("Erro na validação da assinatura.", HttpStatus.INTERNAL_SERVER_ERROR, "/webhook/mercadolivre");
+        }
+    }
+
+    private void validarTimestamp(String valor) {
+        try {
+            long timestamp = Long.parseLong(valor);
+            if (timestamp > 10_000_000_000L) timestamp /= 1000;
+            long diferenca = Math.abs(Instant.now().getEpochSecond() - timestamp);
+            if (diferenca > 300) throw new ApiException("Assinatura expirada.",
+                    HttpStatus.UNAUTHORIZED, "/webhook/mercadolivre");
+        } catch (NumberFormatException exception) {
+            throw new ApiException("Timestamp inválido.", HttpStatus.BAD_REQUEST, "/webhook/mercadolivre");
         }
     }
 

@@ -69,7 +69,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(csrfRepository)
                         .ignoringRequestMatchers(
-                                "/api/payments/webhook"
+                                "/api/payments/webhook",
+                                "/api/v1/webhooks/**"
                         ))
 
                 /*
@@ -105,6 +106,8 @@ public class SecurityConfig {
                                 "/api/auth/esqueceu-senha",
                                 "/api/auth/redefinir-senha",
                                 "/api/payments/webhook",
+                                "/api/v1/webhooks/**",
+                                "/api/v1/marketplace/callback/**",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/favicon.ico"

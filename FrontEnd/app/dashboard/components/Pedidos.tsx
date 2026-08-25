@@ -83,14 +83,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://gestpro-backend-prod
 
 /**
  * Monta a URL de autorização OAuth de cada marketplace.
- * O `state` carrega o empresaId para o backend identificar no callback.
+ * O `state` é criado pelo backend, expira e só pode ser utilizado uma vez.
  *
  * Shopee:        https://partner.shopeemobile.com/api/v2/shop/auth_partner
  * Mercado Livre: https://auth.mercadolivre.com.br/authorization
  */
-function buildOAuthUrl(marketplace: MarketplaceKey, empresaId: number): string {
+function buildOAuthUrl(marketplace: MarketplaceKey, state: string): string {
   const callbackBase = `${API_URL}/api/v1/marketplace/callback`;
-  const state        = `empresaId=${empresaId}`;
 
   if (marketplace === "SHOPEE") {
     // Shopee exige partner_id e redirect_url na query string.
@@ -251,8 +250,8 @@ function ModalConfirmarExclusao({titulo,descricao,onConfirmar,onCancelar,confirm
 /**
  * Redireciona o lojista para a página oficial de autorização OAuth do marketplace.
  * O backend recebe o callback em:
- *   Shopee:        GET /api/v1/marketplace/callback/shopee?code=...&shop_id=...&state=empresaId=X
- *   Mercado Livre: GET /api/v1/marketplace/callback/mercadolivre?code=...&state=empresaId=X
+ *   Shopee:        GET /api/v1/marketplace/callback/shopee?code=...&shop_id=...&state=TOKEN
+ *   Mercado Livre: GET /api/v1/marketplace/callback/mercadolivre?code=...&state=TOKEN
  * Após salvar o token, o backend redireciona para o frontend com ?sucesso=true ou ?erro=...
  */
 function ModalConectarMarketplace({empresaId,marketplace,onClose}:{
@@ -260,10 +259,16 @@ function ModalConectarMarketplace({empresaId,marketplace,onClose}:{
 }) {
   const meta = MARKETPLACE_META[marketplace];
 
-  const irParaOAuth = () => {
-    const url = buildOAuthUrl(marketplace, empresaId);
-    // Redireciona na mesma aba — o backend devolve para /dashboard/pedidos?sucesso=true
-    window.location.href = url;
+  const [carregando,setCarregando] = useState(false);
+  const irParaOAuth = async () => {
+    setCarregando(true);
+    try {
+      const {state} = await fetchAuth<{state:string}>(`/api/v1/marketplace/empresa/${empresaId}/oauth-state`);
+      window.location.href = buildOAuthUrl(marketplace, state);
+    } catch (erro) {
+      alert(erro instanceof Error ? erro.message : "Não foi possível iniciar a conexão.");
+      setCarregando(false);
+    }
   };
 
   return (
@@ -296,9 +301,9 @@ function ModalConectarMarketplace({empresaId,marketplace,onClose}:{
 
           <div style={{display:"flex",gap:8,marginTop:4}}>
             <button onClick={onClose} style={{...btnG,flex:1,justifyContent:"center"}}>Cancelar</button>
-            <button onClick={irParaOAuth}
+            <button onClick={irParaOAuth} disabled={carregando}
               style={{...btnP,flex:2,justifyContent:"center",background:meta.color}}>
-              <Link2 size={14}/> Autorizar no {meta.label}
+              <Link2 size={14}/> {carregando?"Preparando conexão...":`Autorizar no ${meta.label}`}
             </button>
           </div>
         </div>

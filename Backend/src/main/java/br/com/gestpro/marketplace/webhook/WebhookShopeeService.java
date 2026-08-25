@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.security.MessageDigest;
 
 /**
  * Adapter para o webhook da Shopee.
@@ -87,8 +88,9 @@ public class WebhookShopeeService {
             String baseString = webhookUrl + bodyString;
             String expectedHmac = calcularHmac(baseString.getBytes(StandardCharsets.UTF_8), shopeePartnerKey);
 
-            if (!expectedHmac.equalsIgnoreCase(authorization)) {
-                log.warn("Assinatura Shopee inválida. Recebida: {}", authorization);
+            if (!MessageDigest.isEqual(expectedHmac.getBytes(StandardCharsets.US_ASCII),
+                    authorization.toLowerCase().getBytes(StandardCharsets.US_ASCII))) {
+                log.warn("Assinatura Shopee inválida");
                 throw new ApiException("Assinatura inválida.", HttpStatus.UNAUTHORIZED, "/webhook/shopee");
             }
         } catch (ApiException e) {

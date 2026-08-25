@@ -13,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.time.Duration;
 
 /**
  * Serviço central que recebe os dados normalizados de um webhook
@@ -37,6 +39,7 @@ public class WebhookProcessorService {
     private final MarketplaceConnectionRepository connectionRepository;
     private final MarketplaceProductLinkRepository linkRepository;
     private final PedidoServiceInterface pedidoService;
+    private final StringRedisTemplate redis;
 
     /**
      * Dado um pedido normalizado vindo de qualquer marketplace,
@@ -44,6 +47,15 @@ public class WebhookProcessorService {
      * PedidoServiceImpl já existente.
      */
     public Pedido processarPedido(WebhookOrderDTO order) {
+        String idempotenciaKey = "webhook:pedido:" + order.getMarketplace().name()
+                + ":" + order.getSellerId() + ":" + order.getOrderIdExterno();
+        Boolean novoEvento = redis.opsForValue().setIfAbsent(idempotenciaKey, "processing", Duration.ofDays(30));
+        if (!Boolean.TRUE.equals(novoEvento)) {
+            log.info("Webhook duplicado ignorado: marketplace={} orderExterno={}",
+                    order.getMarketplace(), order.getOrderIdExterno());
+            return null;
+        }
+        try {
         // 1. Identificar a empresa pelo sellerId
         MarketplaceConnection conn = connectionRepository
                 .findBySellerIdAndMarketplaceAndActiveTrue(order.getSellerId(), order.getMarketplace())
@@ -96,6 +108,11 @@ public class WebhookProcessorService {
                 pedido.getId(), conn.getEmpresa().getNomeFantasia(),
                 order.getMarketplace(), order.getOrderIdExterno());
 
-        return pedido;
+            redis.opsForValue().set(idempotenciaKey, "processed", Duration.ofDays(30));
+            return pedido;
+        } catch (RuntimeException exception) {
+            redis.delete(idempotenciaKey);
+            throw exception;
+        }
     }
 }

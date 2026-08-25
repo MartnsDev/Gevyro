@@ -36,6 +36,8 @@ public class ClienteServiceImpl {
     public ClienteDTO criar(ClienteRequest req, String emailUsuario) {
         if (req.getEmpresaId() == null)
             throw new ApiException("empresaId é obrigatório", HttpStatus.BAD_REQUEST, "/clientes");
+        if (req.getNome() == null || req.getNome().isBlank())
+            throw new ApiException("Nome é obrigatório", HttpStatus.BAD_REQUEST, "/clientes");
 
         String tipo = normalizarTipo(req.getTipo());
         String email = normalizarEmail(req.getEmail());
@@ -114,19 +116,23 @@ public class ClienteServiceImpl {
     }
 
     @Transactional(readOnly = true)
-    public ClienteDTO buscarPorId(Long id) {
-        return new ClienteDTO(clienteRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Não encontrado", HttpStatus.NOT_FOUND, "/clientes/" + id)));
+    public ClienteDTO buscarPorId(Long id, String emailUsuario) {
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() -> new ApiException("Não encontrado", HttpStatus.NOT_FOUND, "/clientes/" + id));
+        validarEmpresa(cliente.getEmpresa().getId(), emailUsuario);
+        return new ClienteDTO(cliente);
     }
 
     @Transactional(readOnly = true)
-    public List<ClienteDTO> listarPorEmpresa(Long empresaId) {
+    public List<ClienteDTO> listarPorEmpresa(Long empresaId, String emailUsuario) {
+        validarEmpresa(empresaId, emailUsuario);
         return clienteRepository.findByEmpresaIdAndAtivoTrue(empresaId)
                 .stream().map(ClienteDTO::new).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<ClienteDTO> listarPorEmpresaETipo(Long empresaId, String tipo) {
+    public List<ClienteDTO> listarPorEmpresaETipo(Long empresaId, String tipo, String emailUsuario) {
+        validarEmpresa(empresaId, emailUsuario);
         return clienteRepository.findByEmpresaIdAndAtivoTrueAndTipo(empresaId, tipo.toUpperCase())
                 .stream().map(ClienteDTO::new).toList();
     }
@@ -147,12 +153,6 @@ public class ClienteServiceImpl {
         clienteRepository.save(c);
     }
 
-    // legado sem auth
-    @Transactional
-    public void desativarCliente(Long id) {
-        clienteRepository.findById(id).ifPresent(c -> { c.setAtivo(false); clienteRepository.save(c); });
-    }
-
     // legados para compatibilidade
     @Transactional
     public ClienteDTO criarCliente(Cliente cliente, String emailUsuario) {
@@ -165,7 +165,9 @@ public class ClienteServiceImpl {
     }
 
     @Transactional(readOnly = true)
-    public List<ClienteDTO> listarPorEmpresa2(Long empresaId) { return listarPorEmpresa(empresaId); }
+    public List<ClienteDTO> listarPorEmpresa2(Long empresaId, String emailUsuario) {
+        return listarPorEmpresa(empresaId, emailUsuario);
+    }
 
     @Transactional(readOnly = true)
     public List<ClienteDTO> listarClientesAtivos(String email) { return listarAtivos(email); }

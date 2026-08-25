@@ -136,7 +136,7 @@ class AtualizarPlanoOperationTest {
             assertThat(salva.getStatus()).isEqualTo("ATIVO");
             assertThat(salva.getDataVencimento()).isEqualTo(
                     Instant.ofEpochSecond(periodEnd)
-                            .atZone(java.time.ZoneId.systemDefault())
+                            .atZone(java.time.ZoneOffset.UTC)
                             .toLocalDate());
 
             // Usuário ativo
@@ -218,7 +218,7 @@ class AtualizarPlanoOperationTest {
             long novoFim = Instant.now().plusSeconds(60 * 24 * 3600).getEpochSecond();
             Subscription subscription = buildSubscription(PRICE_ID_PRO, novoFim);
             LocalDate vencimentoEsperado = Instant.ofEpochSecond(novoFim)
-                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                    .atZone(java.time.ZoneOffset.UTC).toLocalDate();
 
             assinatura.setUsuario(usuario);
 

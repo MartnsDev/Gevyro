@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -17,10 +18,10 @@ public class CriarProdutoDTO {
     @NotBlank(message = "Nome é obrigatório")
     private String nome;
 
-    private String categoria;
-    private String descricao;
-    private String unidade;
-    private String codigoBarras;
+    @Size(max = 80) private String categoria;
+    @Size(max = 500) private String descricao;
+    @Size(max = 60) private String unidade;
+    @Size(max = 60) private String codigoBarras;
 
     @NotNull(message = "Preço de venda é obrigatório")
     @DecimalMin(value = "0.0", message = "Preço não pode ser negativo")

@@ -13,11 +13,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.UUID;
+import java.time.Duration;
 
 @Component
 public class LoginManualOperation {
@@ -31,19 +33,24 @@ public class LoginManualOperation {
     private final VerificarPlanoOperation verificarPlano;
     private final AuthCookieService authCookieService;
     private final String dummyPasswordHash;
+    private final StringRedisTemplate redis;
+    private static final int MAX_TENTATIVAS = 8;
+    private static final Duration JANELA_TENTATIVAS = Duration.ofMinutes(15);
 
     public LoginManualOperation(
             UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
             JwtTokenServiceInterface jwtTokenService,
             VerificarPlanoOperation verificarPlano,
-            AuthCookieService authCookieService
+            AuthCookieService authCookieService,
+            StringRedisTemplate redis
     ) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.verificarPlano = verificarPlano;
         this.authCookieService = authCookieService;
+        this.redis = redis;
 
         // Reduz diferença de tempo entre usuário existente e inexistente.
         this.dummyPasswordHash =
@@ -57,11 +64,13 @@ public class LoginManualOperation {
             HttpServletResponse response
     ) {
         String email = normalizarEmail(request.email());
+        validarLimite(email, path);
 
         Usuario usuario = usuarioRepository.findByEmail(email).orElse(null);
 
         if (usuario == null) {
             passwordEncoder.matches(request.senha(), dummyPasswordHash);
+            registrarFalha(email);
             throw credenciaisInvalidas(path);
         }
 
@@ -74,6 +83,7 @@ public class LoginManualOperation {
         }
 
         if (usuario.getSenha() == null || usuario.getSenha().isBlank()) {
+            registrarFalha(email);
             throw new ApiException(
                     "Esta conta ainda não possui senha. Use o Google ou redefina sua senha.",
                     HttpStatus.UNAUTHORIZED,
@@ -82,6 +92,7 @@ public class LoginManualOperation {
         }
 
         if (!passwordEncoder.matches(request.senha(), usuario.getSenha())) {
+            registrarFalha(email);
             throw credenciaisInvalidas(path);
         }
 
@@ -93,6 +104,7 @@ public class LoginManualOperation {
 
         String token = jwtTokenService.gerarToken(usuario);
         authCookieService.adicionar(response, token);
+        redis.delete(tentativasKey(email));
 
         return new LoginResponse(
                 usuario.getId(),
@@ -111,6 +123,23 @@ public class LoginManualOperation {
                 HttpStatus.UNAUTHORIZED,
                 path
         );
+    }
+
+    private void validarLimite(String email, String path) {
+        String valor = redis.opsForValue().get(tentativasKey(email));
+        if (valor != null && Integer.parseInt(valor) >= MAX_TENTATIVAS)
+            throw new ApiException("Muitas tentativas. Aguarde 15 minutos e tente novamente.",
+                    HttpStatus.TOO_MANY_REQUESTS, path);
+    }
+
+    private void registrarFalha(String email) {
+        Long tentativas = redis.opsForValue().increment(tentativasKey(email));
+        if (tentativas != null && tentativas == 1)
+            redis.expire(tentativasKey(email), JANELA_TENTATIVAS);
+    }
+
+    private String tentativasKey(String email) {
+        return "auth:login:tentativas:" + email;
     }
 
     private String normalizarEmail(String email) {
