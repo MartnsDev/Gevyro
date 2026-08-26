@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
@@ -78,6 +79,20 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(404).body(retorno);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<RetornoErroAPI> handleNoResourceFoundException(HttpServletRequest request) {
+        RetornoErroAPI retorno = new RetornoErroAPI(
+                false,
+                "Recurso não encontrado.",
+                HttpStatus.NOT_FOUND.value(),
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                null
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(retorno);
     }
 
     // 4. Falhas de autenticação e autorização (Spring Security)
