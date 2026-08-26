@@ -50,7 +50,7 @@ printf '%s' "$RCLONE_CONFIG_BASE64" | base64 -d > "$config_file"
 echo "Iniciando backup MySQL em ${timestamp}."
 
 export MYSQL_PWD="$DB_PASSWORD"
-mariadb-dump \
+mysqldump \
   --host="$DB_HOST" \
   --port="$DB_PORT" \
   --user="$DB_USER" \

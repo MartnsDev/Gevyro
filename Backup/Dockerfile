@@ -1,14 +1,13 @@
-FROM alpine:3.22
+FROM alpine:3.22 AS backup-tools
 
 RUN apk add --no-cache \
     age \
-    bash \
-    ca-certificates \
-    coreutils \
-    gzip \
-    mariadb-client \
-    rclone \
-    tzdata
+    rclone
+
+FROM mysql:9.4
+
+COPY --from=backup-tools /usr/bin/age /usr/local/bin/age
+COPY --from=backup-tools /usr/bin/rclone /usr/local/bin/rclone
 
 WORKDIR /backup
 

@@ -4,6 +4,9 @@ Serviço de execução única para Railway Cron. Ele cria um dump consistente do
 MySQL pela rede privada, compacta, cifra com `age` e envia ao Google Drive via
 `rclone`. Arquivos temporários são removidos ao final da execução.
 
+O serviço usa o cliente oficial do MySQL 9.4, compatível com a autenticação
+`caching_sha2_password` do banco.
+
 ## Variáveis obrigatórias
 
 - `DB_HOST`: `mysql.railway.internal`
