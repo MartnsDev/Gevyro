@@ -73,7 +73,7 @@ type Secao =
 
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ??
-  "https://gestpro-backend-production.up.railway.app";
+  "https://api.gevyro.com.br";
 
 async function fetchAuth<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

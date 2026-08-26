@@ -15,7 +15,7 @@ const nextConfig = {
       // Backend Railway
       {
         protocol: "https",
-        hostname: "gestpro-backend-production.up.railway.app",
+        hostname: "api.gevyro.com.br",
       },
       // Cloudinary — fotos de upload
       {
@@ -79,8 +79,8 @@ const nextConfig = {
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
-              "img-src 'self' data: blob: https://lh3.googleusercontent.com https://res.cloudinary.com https://gestpro-backend-production.up.railway.app https://cdn.jsdelivr.net",
-              "connect-src 'self' https://gestpro-backend-production.up.railway.app",
+              "img-src 'self' data: blob: https://lh3.googleusercontent.com https://res.cloudinary.com https://api.gevyro.com.br https://cdn.jsdelivr.net",
+              "connect-src 'self' https://api.gevyro.com.br",
               "frame-src https://checkout.stripe.com",
               "upgrade-insecure-requests",
             ].join("; "),

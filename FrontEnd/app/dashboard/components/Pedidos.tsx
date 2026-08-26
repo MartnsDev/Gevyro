@@ -79,7 +79,7 @@ const MARKETPLACE_META: Record<MarketplaceKey,{label:string;icon:React.ReactNode
   MERCADO_LIVRE: {label:"Mercado Livre", icon:<img src="https://cdn.jsdelivr.net/gh/MartnsDev/Icons@main/mercadolivre.svg" alt="ML"     width={22} height={22}/>, color:"#854F0B", bg:"#FAEEDA", border:"#EF9F27"},
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://gestpro-backend-production.up.railway.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.gevyro.com.br";
 
 /**
  * Monta a URL de autorização OAuth de cada marketplace.

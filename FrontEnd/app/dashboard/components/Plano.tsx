@@ -18,7 +18,7 @@ const getApiBase = () => {
 };
 const API_BASE = getApiBase();
 
-const API_GLOBAL = process.env.NEXT_PUBLIC_API_URL ?? "https://gestpro-backend-production.up.railway.app";
+const API_GLOBAL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.gevyro.com.br";
 
 async function fetchAuth<T>(path: string): Promise<T> {
   const res = await fetch(`${API_GLOBAL}${path}`, {

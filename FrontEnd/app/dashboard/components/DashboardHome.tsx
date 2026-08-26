@@ -30,7 +30,7 @@ import ModalRelatorioRapido from "../acoesRapidas/ModalRelatorioRapido";
 
 const fmt = (v?: number | null) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://gestpro-backend-production.up.railway.app";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "https://api.gevyro.com.br";
 
 function ClientOnly({ children }: { children: ReactNode }) {
   const [ok, setOk] = useState(false);
