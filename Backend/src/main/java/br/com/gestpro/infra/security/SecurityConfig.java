@@ -13,6 +13,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -61,7 +62,9 @@ public class SecurityConfig {
 
         http
                 .headers(headers -> headers
-                        .cacheControl(Customizer.withDefaults()))
+                        .cacheControl(Customizer.withDefaults())
+                        .crossOriginResourcePolicy(policy -> policy
+                                .policy(CrossOriginResourcePolicy.SAME_SITE)))
 
                 .cors(cors -> cors
                         .configurationSource(corsConfigurationSource))
