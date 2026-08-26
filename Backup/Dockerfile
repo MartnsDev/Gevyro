@@ -1,13 +1,16 @@
-FROM alpine:3.22 AS backup-tools
+FROM golang:1.24-bookworm AS backup-tools
 
-RUN apk add --no-cache \
-    age \
-    rclone
+ENV CGO_ENABLED=0
+
+RUN go install filippo.io/age/cmd/age@v1.2.1 \
+    && go install github.com/rclone/rclone@v1.69.1
 
 FROM mysql:9.4
 
-COPY --from=backup-tools /usr/bin/age /usr/local/bin/age
-COPY --from=backup-tools /usr/bin/rclone /usr/local/bin/rclone
+COPY --from=backup-tools /go/bin/age /usr/local/bin/age
+COPY --from=backup-tools /go/bin/rclone /usr/local/bin/rclone
+
+RUN age --version && rclone version && mysqldump --version
 
 WORKDIR /backup
 
