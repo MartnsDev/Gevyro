@@ -15,16 +15,17 @@ O serviço usa o cliente oficial do MySQL 9.4, compatível com a autenticação
 - `DB_USER`: referência para `${{MySQL.MYSQLUSER}}`
 - `DB_PASSWORD`: referência para `${{MySQL.MYSQLPASSWORD}}`
 - `RCLONE_CONFIG_BASE64`: conteúdo Base64 do arquivo de configuração local
-- `BACKUP_ENCRYPTION_PASSPHRASE`: senha aleatória com no mínimo 24 caracteres
+- `BACKUP_AGE_RECIPIENT`: chave pública `age1...` usada para criptografar
 
 ## Variáveis opcionais
 
 - `BACKUP_REMOTE`: padrão `gestpro-drive:GestPro-Backups`
 - `BACKUP_RETENTION_DAYS`: padrão `30`, mínimo `7`
 
-`DB_PASSWORD`, `RCLONE_CONFIG_BASE64` e `BACKUP_ENCRYPTION_PASSPHRASE` devem ser
-seladas na Railway. A senha de criptografia também deve ficar guardada fora da
-Railway em um gerenciador de senhas; perdê-la torna os backups irrecuperáveis.
+`DB_PASSWORD` e `RCLONE_CONFIG_BASE64` devem ser seladas na Railway. A chave
+privada correspondente ao `BACKUP_AGE_RECIPIENT` deve ficar somente fora da
+Railway, guardada em um gerenciador de senhas e em uma cópia offline segura.
+Perdê-la torna os backups irrecuperáveis.
 
 ## Railway
 

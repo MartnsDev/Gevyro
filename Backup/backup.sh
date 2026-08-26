@@ -8,7 +8,7 @@ required_variables=(
   DB_USER
   DB_PASSWORD
   RCLONE_CONFIG_BASE64
-  BACKUP_ENCRYPTION_PASSPHRASE
+  BACKUP_AGE_RECIPIENT
 )
 
 for variable_name in "${required_variables[@]}"; do
@@ -18,8 +18,8 @@ for variable_name in "${required_variables[@]}"; do
   fi
 done
 
-if [[ ${#BACKUP_ENCRYPTION_PASSPHRASE} -lt 24 ]]; then
-  echo "ERRO: BACKUP_ENCRYPTION_PASSPHRASE deve ter pelo menos 24 caracteres." >&2
+if [[ ! "$BACKUP_AGE_RECIPIENT" =~ ^age1[0-9a-z]+$ ]]; then
+  echo "ERRO: BACKUP_AGE_RECIPIENT deve ser uma chave pública age válida." >&2
   exit 1
 fi
 
@@ -70,9 +70,8 @@ if [[ ! -s "$compressed_file" ]]; then
   exit 1
 fi
 
-export AGE_PASSPHRASE="$BACKUP_ENCRYPTION_PASSPHRASE"
-age --passphrase --output "$encrypted_file" "$compressed_file"
-unset AGE_PASSPHRASE
+age --recipient "$BACKUP_AGE_RECIPIENT" \
+  --output "$encrypted_file" "$compressed_file"
 
 (
   cd "$work_directory"
