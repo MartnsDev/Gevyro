@@ -36,6 +36,7 @@ antigravity.db
 .env.local
 .env.*.local
 .env*
+.codex-zap-scan/
 
 # vercel
 .vercel
