@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend - tipos e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FrontEnd
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: FrontEnd/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci --ignore-scripts
+      - name: Verificar tipos
+        run: npm run typecheck
+      - name: Gerar build
+        run: npm run build
+
+  backend:
+    name: Backend - testes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Executar testes
+        run: ./mvnw --batch-mode --no-transfer-progress test
+
+  backup:
+    name: Backup - imagem Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v4
+      - name: Construir imagem
+        run: docker build --tag gevyro-backup:ci Backup
+      - name: Confirmar execucao sem root
+        run: |
+          test "$(docker image inspect gevyro-backup:ci --format '{{.Config.User}}')" = "mysql"
+          docker run --rm --entrypoint /bin/bash gevyro-backup:ci -lc 'test "$(id -u)" -ne 0'

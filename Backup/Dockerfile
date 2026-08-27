@@ -14,7 +14,9 @@ RUN age --version && rclone version && mysqldump --version
 
 WORKDIR /backup
 
-COPY backup.sh /backup/backup.sh
+COPY --chown=mysql:mysql backup.sh /backup/backup.sh
 RUN chmod 0555 /backup/backup.sh
+
+USER mysql
 
 ENTRYPOINT ["/backup/backup.sh"]
