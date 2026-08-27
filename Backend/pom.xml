@@ -39,7 +39,7 @@
         <lombok.version>1.18.42</lombok.version>
         <jjwt.version>0.11.5</jjwt.version>
         <springdoc.version>2.2.0</springdoc.version>
-        <stripe.version>24.0.0</stripe.version>
+        <stripe.version>33.3.0</stripe.version>
         <cloudinary.version>1.36.0</cloudinary.version>
         <jacoco.version>0.8.14</jacoco.version>
         <pmd.version>3.27.0</pmd.version>
