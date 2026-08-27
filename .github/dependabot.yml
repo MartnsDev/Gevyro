@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /FrontEnd
+    schedule: { interval: weekly, day: monday, time: "09:00", timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: npm
+    directory: /FrontEnd/dashboard
+    schedule: { interval: weekly, day: monday, time: "09:15", timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 3
+    groups:
+      dashboard-minor-patch: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: maven
+    directory: /Backend
+    schedule: { interval: weekly, day: monday, time: "09:30", timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      maven-minor-patch: { patterns: ["*"], update-types: [minor, patch] }
+  - package-ecosystem: docker
+    directory: /Backup
+    schedule: { interval: weekly, day: monday, time: "09:45", timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 3
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday, time: "10:00", timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch: { patterns: ["*"], update-types: [minor, patch] }
