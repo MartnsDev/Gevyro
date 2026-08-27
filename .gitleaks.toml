@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chave Stripe ficticia usada somente pelo perfil de testes"
+regexTarget = "secret"
+regexes = [
+  '''^sk_test_placeholder$''',
+]
