@@ -40,21 +40,21 @@ const PLANOS = [
   },
   {
     id: "BASICO", nome: "Básico", descricao: "A fundação sólida para pequenos negócios.",
-    preco: "R$ 77,79", duracao: "por mês", icon: Star,
+    preco: "R$ 79,90", duracao: "por mês", icon: Star,
     corBase: "var(--primary)", corBg: "var(--primary-muted)",
     features: ["1 empresa gerenciada", "1 frente de caixa (PDV)", "Até 500 produtos", "Relatórios completos", "Histórico de 6 meses", "Controle de dívidas", "Suporte via e-mail"],
     destaque: false, pagavel: true, cta: "Assinar Básico"
   },
   {
     id: "PRO", nome: "Pro", descricao: "Ferramentas avançadas para quem quer crescer.",
-    preco: "R$ 127,79", duracao: "por mês", icon: Rocket,
+    preco: "R$ 149,90", duracao: "por mês", icon: Rocket,
     corBase: "var(--primary)", corBg: "var(--primary-muted)",
     features: ["Até 5 empresas", "Até 5 frentes de caixa", "Produtos ilimitados", "Histórico de 1 ano", "Exportação PDF/CSV", "Backup automático", "Suporte prioritário"],
     destaque: true, pagavel: true, cta: "Escolher o Pro"
   },
   {
     id: "PREMIUM", nome: "Premium", descricao: "Poder absoluto para franquias e redes.",
-    preco: "R$ 277,79", duracao: "por mês", icon: Crown,
+    preco: "R$ 299,90", duracao: "por mês", icon: Crown,
     corBase: "var(--primary)", corBg: "var(--primary-muted)",
     features: ["Empresas ilimitadas", "Caixas ilimitados", "Histórico ilimitado", "Relatórios avançados", "Shopee e Mercado Livre", "Backup automático", "Suporte dedicado 24h"],
     destaque: false, pagavel: true, cta: "Assinar Premium"
