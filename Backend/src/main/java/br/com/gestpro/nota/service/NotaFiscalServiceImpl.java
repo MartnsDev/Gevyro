@@ -170,7 +170,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             nota.setChaveAcesso(chaveFinal);
 
             // 4. Montagem do XML (Assinatura Nua)
-            log.info("Iniciando geração de XML para a chave: {}", chaveFinal);
+            log.info("Iniciando geração do XML da NF-e ID={}", notaId);
             String xmlBruto = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chaveFinal);
 
             // 5. Assinatura Digital do XML
@@ -180,7 +180,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
             // 6. Estratégia de Contingência (A internet do cliente caiu?)
             if (isOffline()) {
-                log.warn("Sistema operando OFFLINE. A nota {} entrará em modo de contingência.", chaveFinal);
+                log.warn("Sistema operando OFFLINE. A NF-e ID={} entrará em modo de contingência.", notaId);
                 return processarContingencia(nota, xmlAssinado);
             }
 
@@ -422,7 +422,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             // Aqui estamos guardando apenas o XML original assinado por simplicidade momentânea
             nota.setXmlAutorizado(xmlAssinado);
 
-            log.info("SUCESSO ABSOLUTO! NF-e AUTORIZADA pela SEFAZ: chave={} protocolo={}", nota.getChaveAcesso(), retorno.getProtocolo());
+            log.info("NF-e ID={} autorizada pela SEFAZ.", nota.getId());
         } else {
             nota.setStatus(NotaFiscalStatus.REJEITADA);
             nota.setMotivoRejeicao("[" + retorno.getCodigo() + "] " + retorno.getMensagem());

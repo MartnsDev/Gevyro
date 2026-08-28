@@ -48,7 +48,7 @@ public class UploadFotoOperation {
         String publicId = "gestpro/fotos/usuario_"
                 + emailUsuario.replace("@", "_at_").replace(".", "_");
 
-        log.info("Fazendo upload de foto para Cloudinary | publicId={}", publicId);
+        log.info("Enviando foto de perfil para o armazenamento.");
 
         Map params = ObjectUtils.asMap(
                 "public_id",      publicId,
@@ -67,7 +67,7 @@ public class UploadFotoOperation {
         Map<String, Object> resultado = cloudinary.uploader().upload(foto.getBytes(), params);
 
         String url = (String) resultado.get("secure_url");
-        log.info("Upload concluído | url={}", url);
+        log.info("Upload da foto de perfil concluído.");
         return url;
     }
 
@@ -76,9 +76,9 @@ public class UploadFotoOperation {
                 + emailUsuario.replace("@", "_at_").replace(".", "_");
         try {
             cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("invalidate", true));
-            log.info("Foto removida do Cloudinary | publicId={}", publicId);
+            log.info("Foto de perfil removida do armazenamento.");
         } catch (Exception e) {
-            log.warn("Não foi possível remover foto do Cloudinary | publicId={} | erro={}", publicId, e.getMessage());
+            log.warn("Não foi possível remover a foto de perfil do armazenamento.");
         }
     }
 }

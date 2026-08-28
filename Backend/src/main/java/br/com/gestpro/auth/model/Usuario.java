@@ -2,6 +2,7 @@ package br.com.gestpro.auth.model;
 
 import br.com.gestpro.plano.StatusAcesso;
 import br.com.gestpro.plano.TipoPlano;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public class Usuario {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     private String senha;
 
     @Column(name = "foto_google")
@@ -52,12 +54,14 @@ public class Usuario {
     private boolean emailConfirmado = false;
 
     @Column
+    @JsonIgnore
     private String tokenConfirmacao;
 
     @Column
     private LocalDateTime dataEnvioConfirmacao;
 
     @Column
+    @JsonIgnore
     private String codigoRecuperacao;
 
     @Column(name = "login_google", nullable = false)

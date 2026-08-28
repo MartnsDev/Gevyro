@@ -313,26 +313,16 @@ public class EmailService {
                     .send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200 || response.statusCode() == 201) {
-                log.info("E-mail aceito pela Resend: status={}, destinatario={}",
-                        response.statusCode(), mascararEmail(to));
+                log.info("E-mail aceito pela Resend: status={}", response.statusCode());
             } else {
-                log.error("Resend recusou o envio: status={}, destinatario={}, resposta={}",
-                        response.statusCode(), mascararEmail(to), response.body());
-                throw new RuntimeException("Resend recusou: " + response.statusCode() + " - " + response.body());
+                log.error("Resend recusou o envio: status={}", response.statusCode());
+                throw new RuntimeException("Resend recusou o envio com status " + response.statusCode());
             }
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Falha ao enviar e-mail: " + e.getMessage(), e);
         }
-    }
-
-    private String mascararEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        int separador = email.indexOf('@');
-        String usuario = email.substring(0, separador);
-        String dominio = email.substring(separador);
-        return usuario.substring(0, Math.min(2, usuario.length())) + "***" + dominio;
     }
 
     //  GERADOR DE CÓDIGO 6 DÍGITOS

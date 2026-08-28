@@ -276,7 +276,7 @@ public class CheckoutController {
             return ResponseEntity.badRequest()
                     .body("Assinatura inválida.");
         } catch (Exception exception) {
-            log.warn("Payload Stripe inválido.", exception);
+            log.warn("Payload Stripe inválido.");
             return ResponseEntity.badRequest()
                     .body("Payload inválido.");
         }

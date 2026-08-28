@@ -72,7 +72,7 @@ public class Cancelar {
 
         // 3. Executar cancelamento no banco de dados
         // OBS: O envio do evento XML para a SEFAZ deve ser chamado a partir daqui ou no NotaFiscalServiceImpl
-        log.info("Marcando Nota Fiscal ID={} como CANCELADA. Motivo: {}", nota.getId(), motivo);
+        log.info("Marcando Nota Fiscal ID={} como CANCELADA.", nota.getId());
 
         nota.setStatus(NotaFiscalStatus.CANCELADA);
 

@@ -29,7 +29,7 @@ public class GerarChaveAcesso {
         String dv         = calcularDigitoVerificador(chaveSemDV);
         String chave      = chaveSemDV + dv;
 
-        log.debug("Chave de acesso gerada: {}", chave);
+        log.debug("Chave de acesso da NF-e gerada.");
         return chave;
     }
 

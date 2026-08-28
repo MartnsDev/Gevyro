@@ -63,7 +63,7 @@ public class Emitir {
         nota.setMotivoRejeicao(null); // Limpa eventual motivo de rejeição anterior
 
         NotaFiscal salva = notaRepo.save(nota);
-        log.info("Nota fiscal ID={} emitida com sucesso. Chave={} Protocolo={}", id, chaveAcesso, protocolo);
+        log.info("Nota fiscal ID={} emitida com sucesso.", id);
 
         Map<String, Object> resposta = buscaPorId.notaParaMap(salva);
         resposta.put("mensagem", "Nota fiscal emitida com sucesso.");

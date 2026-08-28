@@ -286,7 +286,6 @@ export default function NotaFiscalPage() {
       const idDaNota = resCriar?.dados?.id || resCriar?.data?.id || resCriar?.id;
 
       if (!idDaNota) {
-        console.log("Resposta do Backend:", resCriar); // Ajuda a debugar se der erro
         throw new Error("A nota foi salva, mas o backend não devolveu o ID para continuarmos a emissão.");
       }
 

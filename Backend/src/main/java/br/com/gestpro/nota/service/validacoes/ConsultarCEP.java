@@ -33,19 +33,19 @@ public class ConsultarCEP {
         try {
             return consultarViaCep(cepLimpo);
         } catch (Exception e) {
-            log.warn("ViaCEP indisponível para o CEP {}. Tentando BrasilAPI...", cepLimpo);
+            log.warn("ViaCEP indisponível. Tentando BrasilAPI...");
 
             // TENTATIVA 2: BrasilAPI
             try {
                 return consultarBrasilApi(cepLimpo);
             } catch (Exception e2) {
-                log.warn("BrasilAPI indisponível para o CEP {}. Tentando Postmon...", cepLimpo);
+                log.warn("BrasilAPI indisponível. Tentando Postmon...");
 
                 // TENTATIVA 3: Postmon
                 try {
                     return consultarPostmon(cepLimpo);
                 } catch (Exception e3) {
-                    log.error("Todas as APIs de CEP falharam para o CEP {}", cepLimpo);
+                    log.error("Todas as APIs de CEP falharam.");
                     throw new ApiException(
                             "Todos os serviços de consulta de CEP estão instáveis. Por favor, preencha o endereço manualmente.",
                             HttpStatus.BAD_GATEWAY,

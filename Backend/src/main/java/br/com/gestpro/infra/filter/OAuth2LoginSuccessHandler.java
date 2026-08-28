@@ -151,7 +151,7 @@ public class OAuth2LoginSuccessHandler
             HttpServletResponse response,
             AuthenticationException exception
     ) throws IOException {
-        log.warn("Google recusou ou não concluiu a autenticação: {}", exception.getMessage());
+        log.warn("Google recusou ou não concluiu a autenticação.");
         authCookieService.remover(response);
         limparSessaoTemporaria(request, response);
         response.sendRedirect(frontendUrl + "/auth/login?error=oauth2");

@@ -73,7 +73,7 @@ public class XmlGeneratorService {
         xml.append("</infNFe>");
         xml.append("</NFe>");
 
-        log.debug("XML gerado com {} bytes para a chave {}", xml.length(), chaveAcesso);
+        log.debug("XML da NF-e gerado com {} bytes.", xml.length());
         return xml.toString();
     }
 

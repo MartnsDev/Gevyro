@@ -75,7 +75,7 @@ public class ConfiguracaoController {
             Authentication auth) throws IOException {
 
         String email = auth.getName();
-        log.info("Upload de foto iniciado para: {}", email);
+        log.info("Upload de foto de perfil iniciado.");
 
         // Faz upload para o Cloudinary e obtém URL permanente
         String url = uploadFoto.salvarFoto(foto, email);
@@ -89,7 +89,7 @@ public class ConfiguracaoController {
         u.setFotoUpload(url);
         usuarioRepository.save(u);
 
-        log.info("Foto salva com sucesso para {} | url={}", email, url);
+        log.info("Foto de perfil salva com sucesso.");
         return ResponseEntity.ok(Map.of("fotoUrl", url));
     }
 

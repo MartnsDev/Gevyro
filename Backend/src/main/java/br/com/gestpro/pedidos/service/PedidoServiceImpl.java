@@ -173,7 +173,7 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
         pedido.setDataCancelamento(LocalDateTime.now());
         pedido.setMotivoCancelamento(motivo);
 
-        log.info("Pedido id={} cancelado por {}. Estoque devolvido.", id, emailUsuario);
+        log.info("Pedido id={} cancelado. Estoque devolvido.", id);
         return pedidoRepository.save(pedido);
     }
 
@@ -194,7 +194,7 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
         if (pedido.getStatus() != StatusPedido.ENTREGUE && pedido.getStatus() != StatusPedido.CANCELADO)
             throw new ApiException("Finalize ou cancele o pedido antes de removê-lo.", HttpStatus.CONFLICT, PATH);
         pedidoRepository.delete(pedido);
-        log.info("Pedido id={} removido do histórico por {}.", id, emailUsuario);
+        log.info("Pedido id={} removido do histórico.", id);
     }
 
 
@@ -212,7 +212,7 @@ public class PedidoServiceImpl implements PedidoServiceInterface {
                 && p.getStatus() != StatusPedido.CANCELADO))
             throw new ApiException("Existem pedidos ativos no histórico.", HttpStatus.CONFLICT, PATH);
         pedidoRepository.deleteAll(todos);
-        log.info("Histórico de pedidos da empresa {} limpo por {}.", empresaId, emailUsuario);
+        log.info("Histórico de pedidos da empresa {} limpo.", empresaId);
     }
 
 
