@@ -7,6 +7,10 @@ import br.com.gestpro.nota.dto.ItemCalc;
 import br.com.gestpro.nota.model.ItemNotaFiscal;
 import br.com.gestpro.nota.model.NotaFiscal;
 import br.com.gestpro.nota.repository.NotaFiscalRepository;
+import br.com.gestpro.nota.repository.ConfiguracaoFiscalEmpresaRepository;
+import br.com.gestpro.nota.model.ConfiguracaoFiscalEmpresa;
+import br.com.gestpro.nota.service.FiscalSequenceService;
+import br.com.gestpro.nota.config.NotaFiscalConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,6 +28,9 @@ public class Criar {
 
     private final NotaFiscalRepository notaRepo;
     private final BuscaPorId           buscaPorId;
+    private final FiscalSequenceService fiscalSequenceService;
+    private final NotaFiscalConfig.NotaFiscalProperties fiscalProperties;
+    private final ConfiguracaoFiscalEmpresaRepository configuracaoRepository;
 
     // Ação principal
 
@@ -42,6 +49,11 @@ public class Criar {
         }
 
         // 1. Instancia a nota (builder gerado pelo Lombok em NotaFiscal)
+        ConfiguracaoFiscalEmpresa configuracao = configuracaoRepository.findByEmpresaId(request.getEmpresaId()).orElse(null);
+        String seriePadrao = configuracao == null ? "1"
+                : request.getTipo() == br.com.gestpro.nota.TipoNota.NFCE ? configuracao.getSerieNfce() : configuracao.getSerieNfe();
+        boolean homologacao = configuracao == null ? fiscalProperties.isHomologacao()
+                : configuracao.getAmbiente() == ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO;
         NotaFiscal nota = NotaFiscal.builder()
                 .empresaId(request.getEmpresaId())
                 .clienteId(request.getClienteId())
@@ -50,7 +62,7 @@ public class Criar {
                 .tipo(request.getTipo())
                 .naturezaOperacao(request.getNaturezaOperacao())
                 .formaPagamento(request.getFormaPagamento())
-                .serie(request.getSerie() != null ? request.getSerie() : "1")
+                .serie(request.getSerie() != null ? request.getSerie() : seriePadrao)
                 .valorFrete(coalesce(request.getValorFrete(), BigDecimal.ZERO))
                 .valorDesconto(coalesce(request.getValorDesconto(), BigDecimal.ZERO))
                 .informacoesAdicionais(request.getInformacoesAdicionais())
@@ -58,11 +70,8 @@ public class Criar {
                 .build();
 
         // 2. Número sequencial por empresa/tipo/série
-        Long proxNumero = notaRepo
-                .findMaxNumeroByEmpresaIdAndTipoAndSerie(
-                        request.getEmpresaId(), request.getTipo(), nota.getSerie())
-                .map(n -> n + 1)
-                .orElse(1L);
+        Long proxNumero = fiscalSequenceService.reservar(
+                request.getEmpresaId(), request.getTipo(), nota.getSerie(), homologacao);
         nota.setNumeroNota(proxNumero);
 
         // 3. Processa itens e acumula totais

@@ -88,12 +88,13 @@ function StyledInput({ label, ...props }: { label: string } & React.InputHTMLAtt
 
 function StatusBadge({ status }: { status: string }) {
   const isOk = status === "AUTORIZADA";
-  const isErr = status === "REJEITADA" || status === "CANCELADA";
+  const isErr = status === "REJEITADA" || status === "CANCELADA" || status === "ERRO_TECNICO";
   const isWarn = status === "CONTINGENCIA";
+  const isPending = status === "PENDENTE_EMISSAO" || status === "PROCESSANDO" || status === "VALIDANDO";
   
-  const bg = isOk ? theme.primaryAlpha : isErr ? theme.dangerAlpha : isWarn ? theme.warningAlpha : "var(--surface-overlay)";
-  const color = isOk ? theme.primary : isErr ? theme.danger : isWarn ? theme.warning : "var(--primary)";
-  const border = isOk ? "rgba(16,185,129,0.3)" : isErr ? "rgba(239,68,68,0.3)" : isWarn ? "rgba(245,158,11,0.3)" : theme.border;
+  const bg = isOk ? theme.primaryAlpha : isErr ? theme.dangerAlpha : isWarn ? theme.warningAlpha : isPending ? "rgba(59,130,246,0.12)" : "var(--surface-overlay)";
+  const color = isOk ? theme.primary : isErr ? theme.danger : isWarn ? theme.warning : isPending ? "#3b82f6" : "var(--primary)";
+  const border = isOk ? "rgba(16,185,129,0.3)" : isErr ? "rgba(239,68,68,0.3)" : isWarn ? "rgba(245,158,11,0.3)" : isPending ? "rgba(59,130,246,0.3)" : theme.border;
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, color, background: bg, borderWidth: 1, borderStyle: "solid", borderColor: border }}>
@@ -290,11 +291,21 @@ export default function NotaFiscalPage() {
       }
 
       // 3. Pega o ID capturado e manda emitir
-      const resEmitir = await fetchSeguro(`${API_BASE}/${idDaNota}/emitir`, { method: "POST" });
+      const storageKey = `gevyro:fiscal:idempotency:emissao:${idDaNota}`;
+      const idempotencyKey = sessionStorage.getItem(storageKey) || crypto.randomUUID();
+      sessionStorage.setItem(storageKey, idempotencyKey);
+      const resEmitir = await fetchSeguro(`${API_BASE}/${idDaNota}/emitir`, {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+      });
       
       const status=resEmitir?.dados?.status||resEmitir?.status;
       if (status === "AUTORIZADA" || status === "CONTINGENCIA") {
+        sessionStorage.removeItem(storageKey);
         toast.success(status==="AUTORIZADA"?"Nota autorizada com sucesso!":"Nota salva em contingência para transmissão posterior.");
+        setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
+      } else if (status === "PENDENTE_EMISSAO" || status === "PROCESSANDO" || status === "VALIDANDO") {
+        toast.success("Nota recebida e enfileirada para emissão fiscal.");
         setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
       } else {
         setErroApi(`A nota não foi autorizada. Status retornado: ${resEmitir?.dados?.status || resEmitir?.status}`);
@@ -441,6 +452,10 @@ export default function NotaFiscalPage() {
                 <option value="AUTORIZADA">Autorizada</option>
                 <option value="REJEITADA">Rejeitada</option>
                 <option value="CANCELADA">Cancelada</option>
+                <option value="PROCESSANDO">Em processamento</option>
+                <option value="PENDENTE_EMISSAO">Aguardando emissão</option>
+                <option value="ERRO_TECNICO">Erro técnico</option>
+                <option value="CONTINGENCIA">Contingência</option>
                 <option value="DIGITACAO">Rascunhos</option>
               </select>
             </div>

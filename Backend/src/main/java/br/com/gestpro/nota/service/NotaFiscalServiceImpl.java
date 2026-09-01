@@ -10,6 +10,9 @@ import br.com.gestpro.nota.dto.*;
 import br.com.gestpro.nota.model.*;
 import br.com.gestpro.nota.repository.ItemNotaFiscalRepository;
 import br.com.gestpro.nota.repository.NotaFiscalRepository;
+import br.com.gestpro.nota.repository.ConfiguracaoFiscalEmpresaRepository;
+import br.com.gestpro.nota.provider.FiscalProvider;
+import br.com.gestpro.nota.provider.FiscalProviderRegistry;
 import br.com.gestpro.nota.service.validacoes.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +26,6 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.zip.*;
 
@@ -38,7 +40,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final GerarChaveAcesso gerarChaveAcesso;
     private final XmlGeneratorService xmlGeneratorService;
     private final AssinaturaDigitalService assinaturaService;
-    private final SefazComunicacaoService sefazService;
+    private final FiscalProviderRegistry fiscalProviderRegistry;
     private final NotaFiscalConfig.NotaFiscalProperties config;
     private final Criar criarService; // Serviço que já refatoramos para calcular totais
     private final Cancelar cancelarService; // Serviço que refatoramos para validar cancelamento
@@ -46,11 +48,11 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final ConsultarCNPJ consultarCnpjService;
     private final BuscarMunicipios buscarMunicipiosService;
     private final EmpresaRepository empresaRepository;
-
-    // ATENÇÃO: Em um sistema distribuído (Enterprise), usar Map em memória para cache
-    // de certificados não é seguro nem escalável. Use Redis, Vault ou o próprio Banco de Dados.
-    private final Map<Long, byte[]> certCache = new ConcurrentHashMap<>();
-    private final Map<Long, String> senhaCache = new ConcurrentHashMap<>();
+    private final CertificateService certificateService;
+    private final FiscalIdempotencyService idempotencyService;
+    private final FiscalAuditService auditService;
+    private final ConfiguracaoFiscalEmpresaRepository configuracaoFiscalRepository;
+    private final FiscalXmlService fiscalXmlService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -117,10 +119,41 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
     // O CORAÇÃO: EMISSÃO PARA A SEFAZ
 
+    public NotaFiscal emitirIdempotente(Long notaId, String idempotencyKey, String ator) {
+        NotaFiscal atual = buscarPorId(notaId);
+        FiscalIdempotencyService.Resultado operacao = idempotencyService
+                .iniciarEmissao(atual.getEmpresaId(), notaId, idempotencyKey);
+        if (operacao.concluida()) return atual;
+        if (operacao.resultadoDesconhecido()) {
+            throw new ApiException("O resultado da emissão anterior é desconhecido. Consulte a situação da nota antes de reenviar.",
+                    HttpStatus.CONFLICT, "/api/nota-fiscal/emitir");
+        }
+        if (operacao.falhou()) {
+            throw new ApiException("A tentativa anterior falhou. Corrija a nota e use uma nova Idempotency-Key.",
+                    HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/emitir");
+        }
+        if (!operacao.nova()) {
+            throw new ApiException("Esta emissão já está em processamento.", HttpStatus.CONFLICT, "/api/nota-fiscal/emitir");
+        }
+        auditService.registrar(atual.getEmpresaId(), notaId, "EMISSAO_SOLICITADA", ator, "ACEITA", null);
+        try {
+            NotaFiscal emitida = emitir(notaId);
+            idempotencyService.concluir(operacao.operacaoId());
+            auditService.registrar(atual.getEmpresaId(), notaId, "EMISSAO_FINALIZADA", ator,
+                    emitida.getStatus().name(), emitida.getProtocolo() == null ? null : "protocolo=" + emitida.getProtocolo());
+            return emitida;
+        } catch (RuntimeException erro) {
+            idempotencyService.resultadoDesconhecido(operacao.operacaoId());
+            auditService.registrar(atual.getEmpresaId(), notaId, "EMISSAO_FALHOU", ator, "RESULTADO_DESCONHECIDO", erro.getClass().getSimpleName());
+            throw erro;
+        }
+    }
+
     @Override
     public NotaFiscal emitir(Long notaId) {
         // 1. Busca a nota e valida o status
-        NotaFiscal nota = buscarPorId(notaId);
+        NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(notaId)
+                .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/emitir"));
 
         if (nota.getStatus() == NotaFiscalStatus.AUTORIZADA) {
             throw new ApiException(
@@ -138,6 +171,10 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             );
         }
 
+        if (nota.getStatus() == NotaFiscalStatus.VALIDANDO || nota.getStatus() == NotaFiscalStatus.PROCESSANDO) {
+            throw new ApiException("Esta nota já possui uma emissão em andamento.", HttpStatus.CONFLICT, "/api/nota-fiscal/emitir");
+        }
+
         // 2. Busca dados complementares
         // TODO: Injetar o Serviço de Empresa real aqui para pegar os dados completos do emitente
         if (nota.getTipo()==br.com.gestpro.nota.TipoNota.NFSE)
@@ -149,17 +186,9 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             throw new ApiException("Não é possível emitir uma nota sem produtos/serviços.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/emitir");
         }
 
-        byte[] certBytes = certCache.get(nota.getEmpresaId());
-        String senhaCert = senhaCache.get(nota.getEmpresaId());
-        if (certBytes == null || senhaCert == null) {
-            throw new ApiException(
-                    "Certificado digital A1 não configurado nesta instância. Envie o arquivo .pfx antes de emitir.",
-                    HttpStatus.PRECONDITION_FAILED,
-                    "/api/nota-fiscal/emitir"
-            );
-        }
-
-        try {
+        try (CertificateService.Material material = certificateService.carregar(nota.getEmpresaId())) {
+            byte[] certBytes = material.arquivo();
+            String senhaCert = material.senha();
             // Marca no banco que o processo de envio começou (impede concorrência)
             nota.setStatus(NotaFiscalStatus.VALIDANDO);
             notaFiscalRepository.save(nota);
@@ -171,37 +200,31 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
             // 4. Montagem do XML (Assinatura Nua)
             log.info("Iniciando geração do XML da NF-e ID={}", notaId);
-            String xmlBruto = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chaveFinal);
+            boolean homologacao = isHomologacao(nota.getEmpresaId());
+            String xmlBruto = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chaveFinal, homologacao);
 
             // 5. Assinatura Digital do XML
             log.info("Assinando digitalmente o XML com o certificado da empresa...");
             String xmlAssinado = assinaturaService.assinarXml(xmlBruto, certBytes, senhaCert);
             nota.setXmlEnviado(xmlAssinado);
+            nota.setStatus(NotaFiscalStatus.PROCESSANDO);
+            notaFiscalRepository.save(nota);
 
-            // 6. Estratégia de Contingência (A internet do cliente caiu?)
-            if (isOffline()) {
-                log.warn("Sistema operando OFFLINE. A NF-e ID={} entrará em modo de contingência.", notaId);
-                return processarContingencia(nota, xmlAssinado);
-            }
-
-            // 7. Disparo para o WebService da SEFAZ
+            // Contingência só pode ser ativada por regra fiscal explícita; uma
+            // indisponibilidade genérica de internet não define modalidade fiscal.
             log.info("Enviando XML assinado para a SEFAZ do estado: {}", empresa.getUf());
-            SefazComunicacaoService.RetornoSefaz retorno = sefazService.enviarNfe(
-                    xmlAssinado,
-                    empresa.getUf(),
-                    nota.getTipo().getModelo(),
-                    certBytes,
-                    senhaCert,
-                    config.isHomologacao()
-            );
+            FiscalProvider provider = fiscalProviderRegistry.oficialPara(nota.getTipo());
+            FiscalProvider.AutorizacaoResultado resultado = provider.autorizar(new FiscalProvider.AutorizacaoComando(
+                    xmlAssinado, empresa.getUf(), nota.getTipo(), homologacao, certBytes, senhaCert));
+            SefazComunicacaoService.RetornoSefaz retorno = toRetornoLegado(resultado);
 
             // 8. Tratamento da Resposta da SEFAZ
             return processarRetornoSefaz(nota, retorno, xmlAssinado);
 
         } catch (ApiException e) {
             // Repassa erros de negócio que nós mesmos lançamos
-            nota.setStatus(NotaFiscalStatus.REJEITADA);
-            nota.setMotivoRejeicao("Falha de validação: " + e.getMessage());
+            nota.setStatus(NotaFiscalStatus.ERRO_TECNICO);
+            nota.setMotivoRejeicao("Falha técnica durante a emissão. Consulte os detalhes da operação antes de tentar novamente.");
             notaFiscalRepository.save(nota);
             throw e;
 
@@ -209,13 +232,13 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             log.error("Falha catastrófica ao tentar emitir NF-e ID={}", notaId, e);
 
             // Marca a nota como rejeitada por falha técnica
-            nota.setStatus(NotaFiscalStatus.REJEITADA);
-            nota.setMotivoRejeicao("Falha interna de sistema ou timeout com o governo: " + e.getMessage());
+            nota.setStatus(NotaFiscalStatus.ERRO_TECNICO);
+            nota.setMotivoRejeicao("Falha técnica ou resultado desconhecido na comunicação fiscal.");
             notaFiscalRepository.save(nota);
 
             throw new ApiException(
-                    "Ocorreu um erro inesperado ao processar a emissão na SEFAZ: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Não foi possível confirmar o resultado da emissão. Consulte a situação da nota antes de tentar novamente.",
+                    HttpStatus.BAD_GATEWAY,
                     "/api/nota-fiscal/emitir"
             );
         }
@@ -227,15 +250,6 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     public NotaFiscal cancelar(CancelarNotaRequest request) {
         NotaFiscal nota = buscarPorId(request.getNotaId());
         EmpresaInfo empresa = buscarEmpresaInfo(nota.getEmpresaId());
-        byte[] certBytes = certCache.get(nota.getEmpresaId());
-        String senhaCert = senhaCache.get(nota.getEmpresaId());
-        if (certBytes == null || senhaCert == null) {
-            throw new ApiException(
-                    "Certificado digital A1 não configurado nesta instância. Envie o arquivo .pfx antes de cancelar.",
-                    HttpStatus.PRECONDITION_FAILED,
-                    "/api/nota-fiscal/cancelar"
-            );
-        }
 
         // Valida o pedido e registra o cancelamento na mesma transação. Se a
         // SEFAZ falhar, a exceção abaixo desfaz a alteração no banco.
@@ -243,13 +257,15 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         Long notaIdCancelada = (Long) ((Map<String, Object>) mapNotaCancelada.get("nota")).get("id");
         nota = buscarPorId(notaIdCancelada);
 
-        try {
+        try (CertificateService.Material material = certificateService.carregar(nota.getEmpresaId())) {
+            byte[] certBytes = material.arquivo();
+            String senhaCert = material.senha();
             // Dispara o evento XML para a SEFAZ avisando do cancelamento
-            SefazComunicacaoService.RetornoSefaz retorno = sefazService.cancelarNfe(
-                    nota.getChaveAcesso(), nota.getProtocolo(),
-                    request.getJustificativa().trim(),
-                    empresa.getUf(), certBytes, senhaCert, config.isHomologacao()
-            );
+            FiscalProvider provider = fiscalProviderRegistry.oficialPara(nota.getTipo());
+            FiscalProvider.EventoResultado evento = provider.cancelar(new FiscalProvider.CancelamentoComando(
+                    nota.getChaveAcesso(), nota.getProtocolo(), request.getJustificativa().trim(), empresa.getUf(),
+                    isHomologacao(nota.getEmpresaId()), certBytes, senhaCert));
+            SefazComunicacaoService.RetornoSefaz retorno = toRetornoLegado(evento);
 
             if (!retorno.isSucesso()) {
                 throw new ApiException("A SEFAZ rejeitou o cancelamento: " + retorno.getMensagem(), HttpStatus.BAD_REQUEST, "/api/nota-fiscal/cancelar");
@@ -302,6 +318,13 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     @Transactional(readOnly = true)
     public byte[] baixarXml(Long notaId) {
         NotaFiscal nota = buscarPorId(notaId);
+        if (nota.getStatus() == NotaFiscalStatus.AUTORIZADA || nota.getStatus() == NotaFiscalStatus.CANCELADA) {
+            try { return fiscalXmlService.carregarAutorizado(notaId); }
+            catch (IllegalStateException legadoSemArquivoSeguro) {
+                if (nota.getXmlAutorizado() != null) return nota.getXmlAutorizado().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                throw legadoSemArquivoSeguro;
+            }
+        }
         String xml = nota.getXmlAutorizado() != null ? nota.getXmlAutorizado() : nota.getXmlEnviado();
 
         if (xml == null) {
@@ -333,8 +356,8 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
             int arquivosIncluidos = 0;
             for (NotaFiscal nota : notas) {
-                String xml = nota.getXmlAutorizado() != null ? nota.getXmlAutorizado() : nota.getXmlEnviado();
-                if (xml == null) continue;
+                byte[] xmlBytes;
+                try { xmlBytes = baixarXml(nota.getId()); } catch (RuntimeException indisponivel) { continue; }
 
                 String nomeArquivo = String.format("%s-%s.xml",
                         nota.getStatus().name().toLowerCase(),
@@ -343,7 +366,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
                 ZipEntry entry = new ZipEntry(nomeArquivo);
                 zos.putNextEntry(entry);
-                zos.write(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zos.write(xmlBytes);
                 zos.closeEntry();
                 arquivosIncluidos++;
             }
@@ -394,17 +417,10 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
     // MÉTODOS PRIVADOS - REGRAS INTERNAS
 
-    public void registrarCertificado(Long empresaId, byte[] pfxBytes, String senha) {
-        if (!assinaturaService.isCertificadoValido(pfxBytes, senha)) {
-            throw new ApiException("O Certificado Digital informado é inválido, corrompido ou está com a senha incorreta.", HttpStatus.UNAUTHORIZED, "/api/nota-fiscal/certificado");
-        }
-        certCache.put(empresaId, pfxBytes);
-        senhaCache.put(empresaId, senha);
-        log.info("Novo certificado digital A1 armazenado no cache em memória para a empresa ID={}", empresaId);
-    }
-
-    public AssinaturaDigitalService getAssinaturaService() {
-        return this.assinaturaService;
+    public Map<String, String> registrarCertificado(Long empresaId, byte[] pfxBytes, String senha) {
+        Map<String, String> resumo = certificateService.salvar(empresaId, pfxBytes, senha);
+        log.info("Certificado digital A1 substituído com armazenamento criptografado para empresaId={}", empresaId);
+        return resumo;
     }
 
     private NotaFiscal processarRetornoSefaz(NotaFiscal nota,
@@ -418,9 +434,11 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             nota.setDataAutorizacao(LocalDateTime.now());
             nota.setMotivoRejeicao(null);
 
-            // O ideal é embutir o protocolo dentro do XML, na tag <protNFe>
-            // Aqui estamos guardando apenas o XML original assinado por simplicidade momentânea
-            nota.setXmlAutorizado(xmlAssinado);
+            String nfeProc = fiscalXmlService.montarNfeProc(xmlAssinado, retorno.getXmlRetorno());
+            fiscalXmlService.armazenarAutorizado(nota.getEmpresaId(), nota.getId(), nfeProc);
+            // A cópia legada permanece vazia para novos documentos: o original
+            // cifrado e verificado é a única fonte de verdade.
+            nota.setXmlAutorizado(null);
 
             log.info("NF-e ID={} autorizada pela SEFAZ.", nota.getId());
         } else {
@@ -441,16 +459,16 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         return notaFiscalRepository.save(nota);
     }
 
-    private boolean isOffline() {
-        try {
-            URL url = new URL("https://www.google.com");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(2000); // 2 segundos pra ver se tem internet
-            conn.connect();
-            return false;
-        } catch (IOException e) {
-            return true;
-        }
+    private SefazComunicacaoService.RetornoSefaz toRetornoLegado(FiscalProvider.AutorizacaoResultado r) {
+        SefazComunicacaoService.RetornoSefaz retorno = new SefazComunicacaoService.RetornoSefaz();
+        retorno.setSucesso(r.autorizada()); retorno.setCodigo(r.codigo()); retorno.setMensagem(r.motivo());
+        retorno.setProtocolo(r.protocolo()); retorno.setDataHoraRecebimento(r.dataRecebimento()); retorno.setXmlRetorno(r.xmlRetorno());
+        return retorno;
+    }
+    private SefazComunicacaoService.RetornoSefaz toRetornoLegado(FiscalProvider.EventoResultado r) {
+        SefazComunicacaoService.RetornoSefaz retorno = new SefazComunicacaoService.RetornoSefaz();
+        retorno.setSucesso(r.aceito()); retorno.setCodigo(r.codigo()); retorno.setMensagem(r.motivo());
+        retorno.setProtocolo(r.protocolo()); retorno.setXmlRetorno(r.xmlRetorno()); return retorno;
     }
 
     private EmpresaInfo buscarEmpresaInfo(Long empresaId) {
@@ -466,10 +484,18 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         String razao=primeiro(e.getRazaoSocial(),valor(dados,"nome"),e.getNomeFantasia());
         if(vazio(uf)||vazio(municipio)||vazio(e.getLogradouro())||vazio(e.getBairro())||vazio(e.getCep())||vazio(codigoIbge))
             throw new ApiException("Complete o endereço fiscal da empresa e o código IBGE do município antes de emitir.",HttpStatus.PRECONDITION_FAILED,"/api/nota-fiscal/emitir");
+        ConfiguracaoFiscalEmpresa fiscal = configuracaoFiscalRepository.findByEmpresaId(empresaId).orElse(null);
         return EmpresaInfo.builder().id(e.getId()).cnpj(cnpj).razaoSocial(razao).nomeFantasia(e.getNomeFantasia())
                 .logradouro(e.getLogradouro()).numero(primeiro(e.getNumero(),"S/N")).bairro(e.getBairro()).municipio(municipio)
                 .codigoIbge(codigoIbge).uf(uf).cep(e.getCep()).telefone(e.getTelefone())
-                .regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
+                .inscricaoEstadual(fiscal == null ? null : fiscal.getInscricaoEstadual())
+                .regimeTributario(fiscal == null ? RegimeTributario.SIMPLES_NACIONAL : fiscal.getRegimeTributario()).build();
+    }
+
+    private boolean isHomologacao(Long empresaId) {
+        return configuracaoFiscalRepository.findByEmpresaId(empresaId)
+                .map(c -> c.getAmbiente() == ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO)
+                .orElse(config.isHomologacao());
     }
 
     private String valor(Map<String,Object> dados,String chave){Object v=dados.get(chave);return v==null?null:String.valueOf(v);}

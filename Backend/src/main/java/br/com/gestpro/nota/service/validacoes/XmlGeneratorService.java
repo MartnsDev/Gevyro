@@ -44,7 +44,8 @@ public class XmlGeneratorService {
     public String gerarXmlNfe(NotaFiscal nota,
                               EmpresaInfo empresa,
                               List<ItemNotaFiscal> itens,
-                              String chaveAcesso) {
+                              String chaveAcesso,
+                              boolean homologacao) {
 
         boolean isNfce          = TipoNota.NFCE.equals(nota.getTipo());
         boolean isSimplesNacional = RegimeTributario.SIMPLES_NACIONAL.equals(empresa.getRegimeTributario())
@@ -61,7 +62,7 @@ public class XmlGeneratorService {
         xml.append("<infNFe versao=\"4.00\" Id=\"NFe").append(chaveAcesso).append("\">");
 
         // Seções do XML em métodos dedicados para legibilidade
-        appendIde(xml, nota, empresa, chaveAcesso, isNfce, dhEmi);
+        appendIde(xml, nota, empresa, chaveAcesso, isNfce, dhEmi, homologacao);
         appendEmitente(xml, empresa);
         appendDestinatario(xml, nota, isNfce);
         appendItens(xml, itens, isSimplesNacional);
@@ -81,7 +82,7 @@ public class XmlGeneratorService {
 
     /** Bloco <ide> — identificação do documento fiscal. */
     private void appendIde(StringBuilder xml, NotaFiscal nota, EmpresaInfo empresa,
-                           String chaveAcesso, boolean isNfce, String dhEmi) {
+                           String chaveAcesso, boolean isNfce, String dhEmi, boolean homologacao) {
         xml.append("<ide>");
         xml.append("<cUF>").append(GerarChaveAcesso.getCodigoUf(empresa.getUf())).append("</cUF>");
         xml.append("<cNF>").append(chaveAcesso, 35, 43).append("</cNF>");
@@ -100,7 +101,7 @@ public class XmlGeneratorService {
         xml.append("<tpImp>").append(isNfce ? "4" : "1").append("</tpImp>"); // 4=NFC-e; 1=DANFE retrato
         xml.append("<tpEmis>").append(Boolean.TRUE.equals(nota.getEmContingencia()) ? "9" : "1").append("</tpEmis>");
         xml.append("<cDV>").append(chaveAcesso.charAt(43)).append("</cDV>");
-        xml.append("<tpAmb>2</tpAmb>");             // 2 = Homologação (trocar para 1 em produção)
+        xml.append("<tpAmb>").append(homologacao ? "2" : "1").append("</tpAmb>");
         xml.append("<finNFe>1</finNFe>");           // 1 = Normal
         xml.append("<indFinal>").append(isNfce ? "1" : "0").append("</indFinal>");
         xml.append("<indPres>").append(isNfce ? "1" : "9").append("</indPres>");

@@ -1,6 +1,7 @@
 package br.com.gestpro.nota.service.validacoes;
 
 import br.com.gestpro.nota.config.NotaFiscalConfig;
+import br.com.gestpro.nota.provider.FiscalProviderException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.util.Set;
 
 /**
  * A "ponte" entre o GestPro e os Webservices da Receita Estadual (SEFAZ).
@@ -74,8 +76,8 @@ public class SefazComunicacaoService {
             return parseRetornoSefaz(xmlRetorno);
 
         } catch (Exception e) {
-            log.error("Deu ruim na comunicação de rede com a SEFAZ. Servidor deles pode estar fora do ar.", e);
-            return RetornoSefaz.erro("Erro de comunicação com a Fazenda Estadual: " + e.getMessage());
+            log.error("Falha de transporte na autorização fiscal; o resultado externo pode ser desconhecido.", e);
+            throw new FiscalProviderException("Não foi possível confirmar o resultado da autorização fiscal.", true, e);
         }
     }
 
@@ -92,8 +94,8 @@ public class SefazComunicacaoService {
             // TODO: assinar o XML do evento antes do envio.
 
             // O endpoint de evento geralmente é diferente do de autorização
-            String urlStr = NotaFiscalConfig.getWebserviceUrl(uf, "55", homologacao)
-                    .replace("NFeAutorizacao4", "NFeRecepcaoEvento4");
+            String urlStr = NotaFiscalConfig.getWebserviceUrl(uf, "55", homologacao,
+                    NotaFiscalConfig.SefazService.EVENTO);
 
             HttpURLConnection conn = criarConexao(urlStr, pfxBytes, senhaCert);
             conn.setRequestMethod("POST");
@@ -114,8 +116,39 @@ public class SefazComunicacaoService {
             return parseRetornoSefaz(xmlRetorno);
 
         } catch (Exception e) {
-            log.error("Erro feio ao tentar cancelar a NF-e", e);
-            return RetornoSefaz.erro("Erro ao cancelar: " + e.getMessage());
+            log.error("Falha de transporte no evento fiscal; o resultado externo pode ser desconhecido.", e);
+            throw new FiscalProviderException("Não foi possível confirmar o resultado do evento fiscal.", true, e);
+        }
+    }
+
+    public RetornoSefaz consultarSituacao(String chaveAcesso, String uf, byte[] pfxBytes,
+                                           String senhaCert, boolean homologacao) {
+        if (chaveAcesso == null || !chaveAcesso.matches("[0-9]{44}"))
+            throw new IllegalArgumentException("Chave de acesso inválida para consulta fiscal.");
+        try {
+            String url = NotaFiscalConfig.getWebserviceUrl(uf, "55", homologacao,
+                    NotaFiscalConfig.SefazService.CONSULTA_PROTOCOLO);
+            int tpAmb = homologacao ? 2 : 1;
+            String mensagem = "<consSitNFe xmlns=\"http://www.portalfiscal.inf.br/nfe\" versao=\"4.00\">"
+                    + "<tpAmb>" + tpAmb + "</tpAmb><xServ>CONSULTAR</xServ><chNFe>" + chaveAcesso
+                    + "</chNFe></consSitNFe>";
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+                    + "<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body>"
+                    + "<nfeConsultaNF xmlns=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4\">"
+                    + "<nfeDadosMsg>" + mensagem + "</nfeDadosMsg></nfeConsultaNF></soap12:Body></soap12:Envelope>";
+            HttpURLConnection conn = criarConexao(url, pfxBytes, senhaCert);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/soap+xml; charset=utf-8");
+            conn.setRequestProperty("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4/nfeConsultaNF");
+            conn.setDoOutput(true);
+            try (OutputStream os = conn.getOutputStream()) { os.write(soap.getBytes(StandardCharsets.UTF_8)); }
+            int httpCode = conn.getResponseCode();
+            InputStream stream = httpCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            if (httpCode >= 500) throw new IOException("Autorizador indisponível (HTTP " + httpCode + ").");
+            return parseRetornoSefaz(lerStream(stream));
+        } catch (Exception e) {
+            if (e instanceof FiscalProviderException fiscal) throw fiscal;
+            throw new FiscalProviderException("Não foi possível consultar a situação fiscal.", false, e);
         }
     }
 
@@ -203,10 +236,16 @@ public class SefazComunicacaoService {
      * Extrai os campos necessários da resposta da SEFAZ.
      * Cód Status (100 é sucesso), Motivo da Rejeição, Recibo, etc.
      */
-    private RetornoSefaz parseRetornoSefaz(String xmlRetorno) {
+    RetornoSefaz parseRetornoSefaz(String xmlRetorno) {
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(true);
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            dbf.setXIncludeAware(false);
+            dbf.setExpandEntityReferences(false);
             DocumentBuilder db = dbf.newDocumentBuilder();
             Document doc = db.parse(new ByteArrayInputStream(xmlRetorno.getBytes(StandardCharsets.UTF_8)));
 
@@ -221,12 +260,14 @@ public class SefazComunicacaoService {
             retorno.setMensagem(xMotivo);
             retorno.setProtocolo(nProt);
             retorno.setDataHoraRecebimento(dhRecbto);
-            retorno.setSucesso("100".equals(cStat) || "104".equals(cStat)); // 100=Autorizado, 104=Lote Processado
+            // Em respostas compostas, getTagValue seleciona o resultado interno
+            // (protNFe/retEvento), nunca o mero "lote processado" externo (104/128).
+            retorno.setSucesso(Set.of("100", "135", "136", "155").contains(cStat));
 
             return retorno;
         } catch (Exception e) {
-            log.error("A SEFAZ mandou um XML que eu não entendi, ou a conexão quebrou no meio.", e);
-            return RetornoSefaz.erro("Erro ao mastigar o retorno do governo: " + e.getMessage());
+            log.error("Resposta fiscal inválida ou incompleta recebida do autorizador.", e);
+            throw new FiscalProviderException("O autorizador fiscal retornou uma resposta inválida.", true, e);
         }
     }
 
@@ -236,7 +277,7 @@ public class SefazComunicacaoService {
     private String getTagValue(Document doc, String tagName) {
         NodeList nl = doc.getElementsByTagNameNS("*", tagName);
         if (nl != null && nl.getLength() > 0) {
-            return nl.item(0).getTextContent();
+            return nl.item(nl.getLength() - 1).getTextContent();
         }
         return null;
     }

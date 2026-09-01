@@ -22,6 +22,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<RetornoErroAPI> handleRateLimit(RateLimitExceededException ex) {
+        RetornoErroAPI erro = new RetornoErroAPI(false, ex.getMessage(), 429, ex.getPath(),
+                LocalDateTime.now(), null);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds())).body(erro);
+    }
+
     // 1. Exceção personalizada da API
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<RetornoErroAPI> handleApiException(ApiException ex) {

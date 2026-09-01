@@ -7,6 +7,8 @@ import br.com.gestpro.nota.model.NotaFiscal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -27,13 +29,9 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
 
     Optional<NotaFiscal> findByChaveAcesso(String chaveAcesso);
 
-    // Busca o maior número de nota para controle sequencial
-    @Query("SELECT MAX(n.numeroNota) FROM NotaFiscal n WHERE n.empresaId = :empresaId AND n.tipo = :tipo AND n.serie = :serie")
-    Optional<Long> findMaxNumeroByEmpresaIdAndTipoAndSerie(
-            @Param("empresaId") Long empresaId,
-            @Param("tipo") TipoNota tipo,
-            @Param("serie") String serie
-    );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select n from NotaFiscal n where n.id = :id")
+    Optional<NotaFiscal> findByIdForUpdate(@Param("id") Long id);
 
     // Notas em contingência aguardando transmissão
     List<NotaFiscal> findByEmpresaIdAndEmContingenciaAndStatus(

@@ -12,6 +12,7 @@ import java.util.Map;
 
 @Configuration
 public class NotaFiscalConfig {
+    public enum SefazService { AUTORIZACAO, CONSULTA_PROTOCOLO, STATUS_SERVICO, EVENTO, INUTILIZACAO }
 
     /**
      * URLs dos webservices SEFAZ por UF.
@@ -83,6 +84,23 @@ public class NotaFiscalConfig {
         Map<String, SefazUrls> mapa = "65".equals(modelo) ? WEBSERVICES_NFCE : WEBSERVICES_NFE;
         SefazUrls urls = mapa.getOrDefault(uf, mapa.get("DEFAULT"));
         return homologacao ? urls.getHomologacao() : urls.getProducao();
+    }
+
+    /** Endpoints por serviço que foram conferidos individualmente no Portal Nacional. */
+    public static String getWebserviceUrl(String uf, String modelo, boolean homologacao, SefazService service) {
+        if (service == SefazService.AUTORIZACAO) return getWebserviceUrl(uf, modelo, homologacao);
+        if (!"SP".equalsIgnoreCase(uf)) {
+            throw new IllegalStateException("Endpoint " + service + " ainda não foi validado para a UF " + uf + ".");
+        }
+        String prefix = homologacao ? "https://homologacao.nfe.fazenda.sp.gov.br/ws/"
+                : "https://nfe.fazenda.sp.gov.br/ws/";
+        return prefix + switch (service) {
+            case CONSULTA_PROTOCOLO -> "nfeconsultaprotocolo4.asmx";
+            case STATUS_SERVICO -> "nfestatusservico4.asmx";
+            case EVENTO -> "nferecepcaoevento4.asmx";
+            case INUTILIZACAO -> "nfeinutilizacao4.asmx";
+            default -> throw new IllegalArgumentException("Serviço inválido.");
+        };
     }
 
     @Getter

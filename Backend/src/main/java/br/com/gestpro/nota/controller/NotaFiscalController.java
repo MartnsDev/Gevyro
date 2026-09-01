@@ -10,6 +10,8 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
+import jakarta.servlet.http.HttpServletRequest;
+import br.com.gestpro.infra.security.DistributedRateLimitService;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -22,6 +24,9 @@ public class NotaFiscalController {
 
     private final NotaFiscalInterface notaFiscalService;
     private final NotaFiscalServiceImpl notaFiscalServiceImpl;
+    private final br.com.gestpro.nota.service.FiscalAuditService fiscalAuditService;
+    private final br.com.gestpro.nota.service.FiscalEmissionQueueService fiscalEmissionQueueService;
+    private final DistributedRateLimitService rateLimit;
 
     // CRUD
 
@@ -30,6 +35,7 @@ public class NotaFiscalController {
         try {
             notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
             NotaFiscal nota = notaFiscalService.criar(request);
+            fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CRIADO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
@@ -69,15 +75,13 @@ public class NotaFiscalController {
     // CICLO DE VIDA
 
     @PostMapping("/{id}/emitir")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> emitir(@PathVariable Long id, Authentication auth) {
-        try {
-            notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
-            NotaFiscal nota = notaFiscalService.emitir(id);
-            return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
-                    .body(ApiResponse.erro(e.getMessage()));
-        }
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> emitir(
+            @PathVariable Long id,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
+        NotaFiscal nota = fiscalEmissionQueueService.enfileirar(id, idempotencyKey, auth.getName(), httpRequest.getRemoteAddr());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     @PostMapping("/cancelar")
@@ -85,6 +89,7 @@ public class NotaFiscalController {
         try {
             notaFiscalServiceImpl.validarAcessoNota(request.getNotaId(), auth.getName());
             NotaFiscal nota = notaFiscalService.cancelar(request);
+            fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CANCELADO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
@@ -116,6 +121,8 @@ public class NotaFiscalController {
         try {
             notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
             byte[] xml = notaFiscalService.baixarXml(id);
+            NotaFiscal nota = notaFiscalService.buscarPorId(id);
+            fiscalAuditService.registrar(nota.getEmpresaId(), id, "XML_BAIXADO", auth.getName(), "SUCESSO", null);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_XML);
             headers.setContentDisposition(ContentDisposition.attachment().filename("nfe-" + id + ".xml").build());
@@ -190,14 +197,15 @@ public class NotaFiscalController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadCertificado(
             @PathVariable Long empresaId,
             @RequestParam("arquivo") MultipartFile arquivo,
-            @RequestParam("senha") String senha, Authentication auth
+            @RequestParam("senha") String senha, Authentication auth, HttpServletRequest httpRequest
     ) {
         try {
             notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+            rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
+                    auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
             byte[] pfxBytes = arquivo.getBytes();
-            notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
-            Map<String, String> info = notaFiscalServiceImpl
-                    .getAssinaturaService().getInfoCertificado(pfxBytes, senha);
+            Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
+            fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.ok(ApiResponse.ok(info));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
