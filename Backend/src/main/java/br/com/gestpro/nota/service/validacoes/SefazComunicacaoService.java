@@ -3,6 +3,7 @@ package br.com.gestpro.nota.service.validacoes;
 import br.com.gestpro.nota.config.NotaFiscalConfig;
 import br.com.gestpro.nota.provider.FiscalProviderException;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
@@ -25,7 +26,10 @@ import java.util.Set;
  */
 @Slf4j // <-- Lombok: Substitui a declaração manual do Logger
 @Service
+@RequiredArgsConstructor
 public class SefazComunicacaoService {
+
+    private final AssinaturaDigitalService assinaturaDigitalService;
 
     // A SEFAZ pode responder lentamente em períodos de pico.
     private static final int TIMEOUT_CONEXAO = 30_000;
@@ -90,8 +94,7 @@ public class SefazComunicacaoService {
         try {
             // Monta o mini-XML de evento
             String xmlEvento = buildXmlCancelamento(chaveAcesso, protocolo, justificativa, homologacao);
-
-            // TODO: assinar o XML do evento antes do envio.
+            xmlEvento = assinaturaDigitalService.assinarEvento(xmlEvento, pfxBytes, senhaCert);
 
             // O endpoint de evento geralmente é diferente do de autorização
             String urlStr = NotaFiscalConfig.getWebserviceUrl(uf, "55", homologacao,
@@ -172,8 +175,18 @@ public class SefazComunicacaoService {
     /**
      * Monta o evento 110111 (Cancelamento).
      */
-    private String buildXmlCancelamento(String chaveAcesso, String protocolo,
-                                        String justificativa, boolean homologacao) {
+    String buildXmlCancelamento(String chaveAcesso, String protocolo,
+                                String justificativa, boolean homologacao) {
+        if (chaveAcesso == null || !chaveAcesso.matches("[0-9]{44}")) {
+            throw new IllegalArgumentException("Chave de acesso inválida para cancelamento.");
+        }
+        if (protocolo == null || !protocolo.matches("[0-9]{15}")) {
+            throw new IllegalArgumentException("Protocolo de autorização inválido para cancelamento.");
+        }
+        String motivo = justificativa == null ? "" : justificativa.trim();
+        if (motivo.length() < 15 || motivo.length() > 255 || motivo.chars().anyMatch(c -> c < 0x20 && c != '\t' && c != '\n' && c != '\r')) {
+            throw new IllegalArgumentException("Justificativa inválida para cancelamento.");
+        }
         int tpAmb = homologacao ? 2 : 1;
         String now = java.time.OffsetDateTime.now(java.time.ZoneId.of("America/Sao_Paulo"))
                 .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
@@ -193,11 +206,19 @@ public class SefazComunicacaoService {
                 + "<detEvento versao=\"1.00\">"
                 + "<descEvento>Cancelamento</descEvento>"
                 + "<nProt>" + protocolo + "</nProt>"
-                + "<xJust>" + justificativa + "</xJust>"
+                + "<xJust>" + escapeXml(motivo) + "</xJust>"
                 + "</detEvento>"
                 + "</infEvento>"
                 + "</evento>"
                 + "</envEvento>";
+    }
+
+    private String escapeXml(String valor) {
+        return valor.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 
     /**

@@ -62,9 +62,9 @@ public class Cancelar {
 
         // 2. Validação do motivo (SEFAZ exige 15 a 256 caracteres)
         String motivo = request.getJustificativa();
-        if (motivo == null || motivo.isBlank() || motivo.trim().length() < 15) {
+        if (motivo == null || motivo.isBlank() || motivo.trim().length() < 15 || motivo.trim().length() > 255) {
             throw new ApiException(
-                    "A justificativa do cancelamento deve ter pelo menos 15 caracteres.",
+                    "A justificativa do cancelamento deve ter entre 15 e 255 caracteres.",
                     HttpStatus.BAD_REQUEST,
                     "/api/nota-fiscal/cancelar"
             );

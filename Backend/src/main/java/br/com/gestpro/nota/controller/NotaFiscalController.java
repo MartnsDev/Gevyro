@@ -84,7 +84,7 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/cancelar")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@RequestBody CancelarNotaRequest request, Authentication auth, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@jakarta.validation.Valid @RequestBody CancelarNotaRequest request, Authentication auth, HttpServletRequest httpRequest) {
         NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
         notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/cancelar");

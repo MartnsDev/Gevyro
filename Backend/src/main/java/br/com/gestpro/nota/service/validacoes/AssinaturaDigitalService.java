@@ -30,6 +30,15 @@ import java.util.List;
 public class AssinaturaDigitalService {
 
     public String assinarXml(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infNFe");
+    }
+
+    public String assinarEvento(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infEvento");
+    }
+
+    private String assinarElemento(String xmlConteudo, byte[] pfxBytes, String senhaCert,
+                                   String elementoLocal) throws Exception {
         // Carrega o certificado do KeyStore
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (InputStream is = new ByteArrayInputStream(pfxBytes)) {
@@ -44,20 +53,27 @@ public class AssinaturaDigitalService {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setNamespaceAware(true);
         dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        dbf.setXIncludeAware(false);
+        dbf.setExpandEntityReferences(false);
         DocumentBuilder db = dbf.newDocumentBuilder();
         Document doc;
         try (InputStream is = new ByteArrayInputStream(xmlConteudo.getBytes("UTF-8"))) {
             doc = db.parse(is);
         }
 
-        // Encontra o elemento a ser assinado (infNFe ou infNFSe)
-        NodeList elementos = doc.getElementsByTagNameNS("http://www.portalfiscal.inf.br/nfe", "infNFe");
-        if (elementos.getLength() == 0) {
-            elementos = doc.getElementsByTagNameNS("http://www.portalfiscal.inf.br/nfe", "infCFe");
+        NodeList elementos = doc.getElementsByTagNameNS("http://www.portalfiscal.inf.br/nfe", elementoLocal);
+        if (elementos.getLength() != 1) {
+            throw new IllegalArgumentException("XML fiscal deve possuir exatamente um elemento " + elementoLocal + ".");
         }
-
         Element elementoParaAssinar = (Element) elementos.item(0);
         String id = elementoParaAssinar.getAttribute("Id");
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Elemento fiscal sem atributo Id para assinatura.");
+        }
+        elementoParaAssinar.setIdAttribute("Id", true);
 
         // Configura o motor de assinatura XML
         XMLSignatureFactory signatureFactory = XMLSignatureFactory.getInstance("DOM");

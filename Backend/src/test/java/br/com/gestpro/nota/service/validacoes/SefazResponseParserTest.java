@@ -2,9 +2,10 @@ package br.com.gestpro.nota.service.validacoes;
 
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SefazResponseParserTest {
-    private final SefazComunicacaoService service = new SefazComunicacaoService();
+    private final SefazComunicacaoService service = new SefazComunicacaoService(null);
 
     @Test void loteProcessadoUsaAutorizacaoInterna() {
         var retorno = service.parseRetornoSefaz(resposta("100", "Autorizado o uso da NF-e"));
@@ -27,6 +28,21 @@ class SefazResponseParserTest {
         var retorno = service.parseRetornoSefaz(xml);
         assertThat(retorno.isSucesso()).isTrue();
         assertThat(retorno.getCodigo()).isEqualTo("135");
+    }
+
+    @Test void cancelamentoEscapaJustificativaSemPermitirInjecaoXml() {
+        String xml = service.buildXmlCancelamento(
+                "35260900000000000191550010000000011000000010",
+                "135260000000001", "Cancelamento por erro <item> & revisão", true);
+
+        assertThat(xml).contains("Cancelamento por erro &lt;item&gt; &amp; revisão");
+        assertThat(xml).doesNotContain("<item>");
+    }
+
+    @Test void cancelamentoRejeitaChaveEProtocoloInvalidos() {
+        assertThatThrownBy(() -> service.buildXmlCancelamento(
+                "123", "abc", "Justificativa suficientemente longa", true))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private String resposta(String codigo, String motivo) {

@@ -275,9 +275,14 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
             return nota;
 
-        } catch (Exception e) {
+        } catch (ApiException e) {
+            throw e;
+        } catch (br.com.gestpro.nota.provider.FiscalProviderException e) {
             log.error("Erro na comunicação do cancelamento", e);
             throw new ApiException("Falha ao comunicar cancelamento com a Fazenda Estadual.", HttpStatus.BAD_GATEWAY, "/api/nota-fiscal/cancelar");
+        } catch (Exception e) {
+            log.error("Falha interna ao processar cancelamento fiscal", e);
+            throw new ApiException("Não foi possível processar o cancelamento fiscal.", HttpStatus.INTERNAL_SERVER_ERROR, "/api/nota-fiscal/cancelar");
         }
     }
 
