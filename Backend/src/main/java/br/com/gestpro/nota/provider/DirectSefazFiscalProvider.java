@@ -29,6 +29,11 @@ public class DirectSefazFiscalProvider implements FiscalProvider {
                 c.justificativa(), c.uf(), c.certificado(), c.senhaCertificado(), c.homologacao()));
         return new EventoResultado(r.isSucesso(), r.getCodigo(), r.getMensagem(), r.getProtocolo(), r.getXmlRetorno());
     }
+    public EventoResultado cartaCorrecao(CartaCorrecaoComando c) {
+        var r = circuitBreaker.executeSupplier(() -> gateway.enviarCartaCorrecao(c.chaveAcesso(), c.correcao(),
+                c.sequencia(), c.uf(), c.certificado(), c.senhaCertificado(), c.homologacao()));
+        return new EventoResultado(r.isSucesso(), r.getCodigo(), r.getMensagem(), r.getProtocolo(), r.getXmlRetorno());
+    }
     public SituacaoResultado consultarSituacao(ConsultaSituacaoComando c) {
         var r = circuitBreaker.executeSupplier(() -> gateway.consultarSituacao(c.chaveAcesso(), c.uf(),
                 c.certificado(), c.senhaCertificado(), c.homologacao()));

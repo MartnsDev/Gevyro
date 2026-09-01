@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS eventos_fiscais (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    empresa_id BIGINT NOT NULL,
+    documento_id BIGINT NOT NULL,
+    tipo VARCHAR(20) NOT NULL,
+    sequencia INT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    codigo VARCHAR(10),
+    motivo VARCHAR(255),
+    protocolo VARCHAR(60),
+    conteudo_cifrado LONGBLOB NOT NULL,
+    nonce BINARY(12) NOT NULL,
+    sha256 CHAR(64) NOT NULL,
+    criado_em DATETIME(6) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_evento_documento_tipo_sequencia UNIQUE (documento_id, tipo, sequencia),
+    CONSTRAINT uk_evento_sha256 UNIQUE (sha256),
+    CONSTRAINT fk_evento_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+    CONSTRAINT fk_evento_documento FOREIGN KEY (documento_id) REFERENCES notas_fiscais (id),
+    INDEX idx_evento_empresa_criado (empresa_id, criado_em)
+) ENGINE=InnoDB;

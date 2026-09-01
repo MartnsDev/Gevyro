@@ -11,6 +11,7 @@ import br.com.gestpro.nota.model.*;
 import br.com.gestpro.nota.repository.ItemNotaFiscalRepository;
 import br.com.gestpro.nota.repository.NotaFiscalRepository;
 import br.com.gestpro.nota.repository.ConfiguracaoFiscalEmpresaRepository;
+import br.com.gestpro.nota.repository.EventoFiscalRepository;
 import br.com.gestpro.nota.provider.FiscalProvider;
 import br.com.gestpro.nota.provider.FiscalProviderRegistry;
 import br.com.gestpro.nota.service.validacoes.*;
@@ -55,6 +56,8 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final FiscalXmlService fiscalXmlService;
     private final FiscalXsdValidationService xsdValidationService;
     private final DanfePdfService danfePdfService;
+    private final EventoFiscalRepository eventoFiscalRepository;
+    private final FiscalEncryptionService fiscalEncryptionService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -284,6 +287,48 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         } catch (Exception e) {
             log.error("Falha interna ao processar cancelamento fiscal", e);
             throw new ApiException("Não foi possível processar o cancelamento fiscal.", HttpStatus.INTERNAL_SERVER_ERROR, "/api/nota-fiscal/cancelar");
+        }
+    }
+
+    @Override
+    public EventoFiscal cartaCorrecao(CartaCorrecaoRequest request) {
+        NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(request.getNotaId())
+                .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/carta-correcao"));
+        if (nota.getTipo() != br.com.gestpro.nota.TipoNota.NFE)
+            throw new ApiException("CC-e é permitida somente para NF-e modelo 55.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/carta-correcao");
+        if (nota.getStatus() != NotaFiscalStatus.AUTORIZADA || nota.getChaveAcesso() == null)
+            throw new ApiException("CC-e exige uma NF-e autorizada e não cancelada.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/carta-correcao");
+
+        int sequencia = eventoFiscalRepository.maiorSequencia(nota.getId(), EventoFiscal.Tipo.CCE) + 1;
+        if (sequencia > 20)
+            throw new ApiException("A NF-e atingiu o limite de 20 Cartas de Correção.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/carta-correcao");
+        EmpresaInfo empresa = buscarEmpresaInfo(nota.getEmpresaId());
+        try (CertificateService.Material material = certificateService.carregar(nota.getEmpresaId())) {
+            FiscalProvider provider = fiscalProviderRegistry.oficialPara(nota.getTipo());
+            FiscalProvider.EventoResultado resultado = provider.cartaCorrecao(new FiscalProvider.CartaCorrecaoComando(
+                    nota.getChaveAcesso(), request.getCorrecao().trim(), sequencia, empresa.getUf(),
+                    isHomologacao(nota.getEmpresaId()), material.arquivo(), material.senha()));
+            EventoFiscal.Status status = resultado.aceito() ? EventoFiscal.Status.ACEITO : EventoFiscal.Status.REJEITADO;
+            String historico = "CORRECAO:\n" + request.getCorrecao().trim() + "\nRETORNO_SEFAZ:\n"
+                    + java.util.Objects.toString(resultado.xmlRetorno(), "");
+            byte[] conteudo = historico.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                var cifrado = fiscalEncryptionService.encrypt(conteudo);
+                String hash = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(conteudo));
+                EventoFiscal evento = eventoFiscalRepository.save(new EventoFiscal(nota.getEmpresaId(), nota.getId(), sequencia,
+                        status, resultado.codigo(), resultado.motivo(), resultado.protocolo(), cifrado.cipherText(), cifrado.nonce(), hash));
+                if (!resultado.aceito())
+                    throw new ApiException("A SEFAZ rejeitou a CC-e: [" + resultado.codigo() + "] " + resultado.motivo(),
+                            HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/carta-correcao");
+                return evento;
+            } finally { java.util.Arrays.fill(conteudo, (byte) 0); }
+        } catch (ApiException e) {
+            throw e;
+        } catch (br.com.gestpro.nota.provider.FiscalProviderException e) {
+            throw new ApiException("Não foi possível confirmar a CC-e. Consulte a SEFAZ antes de repetir.",
+                    HttpStatus.BAD_GATEWAY, "/api/nota-fiscal/carta-correcao");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponível.", e);
         }
     }
 

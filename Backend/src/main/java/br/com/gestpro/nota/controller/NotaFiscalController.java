@@ -97,6 +97,21 @@ public class NotaFiscalController {
         }
     }
 
+    @PostMapping("/carta-correcao")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> cartaCorrecao(
+            @jakarta.validation.Valid @RequestBody CartaCorrecaoRequest request,
+            Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
+        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
+                "/api/nota-fiscal/carta-correcao");
+        EventoFiscal evento = notaFiscalService.cartaCorrecao(request);
+        fiscalAuditService.registrar(acesso.getEmpresaId(), acesso.getId(), "CCE_REGISTRADA", auth.getName(),
+                "SUCESSO", "sequencia=" + evento.getSequencia() + ",protocolo=" + evento.getProtocolo());
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("sequencia", evento.getSequencia(),
+                "protocolo", evento.getProtocolo() == null ? "" : evento.getProtocolo())));
+    }
+
     @PostMapping("/inutilizar")
     public ResponseEntity<ApiResponse<Void>> inutilizar(@jakarta.validation.Valid @RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());

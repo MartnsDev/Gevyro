@@ -45,4 +45,13 @@ class FiscalXsdValidationServiceTest {
                 + "<xJust>Numeração não utilizada pelo contribuinte</xJust></infInut></inutNFe>";
         assertThrows(ApiException.class, () -> service.validarInutilizacaoAssinada(xmlSemAssinatura));
     }
+
+    @Test
+    void carregaSchemaOficialDeCartaCorrecaoEExigeAssinatura() {
+        SefazComunicacaoService gateway = new SefazComunicacaoService(null, null);
+        String xmlSemAssinatura = gateway.buildXmlCartaCorrecao(
+                "35260900000000000191550010000000011000000010",
+                "Corrigir informações complementares da operação", 1, true);
+        assertThrows(ApiException.class, () -> service.validarCartaCorrecaoAssinada(xmlSemAssinatura));
+    }
 }

@@ -3,6 +3,7 @@ package br.com.gestpro.nota.service;
 import br.com.gestpro.nota.NotaFiscalStatus;
 import br.com.gestpro.nota.dto.*;
 import br.com.gestpro.nota.model.NotaFiscal;
+import br.com.gestpro.nota.model.EventoFiscal;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -28,6 +29,9 @@ public interface NotaFiscalInterface {
      * Cancela uma nota autorizada (dentro do prazo legal de 24h).
      */
     NotaFiscal cancelar(CancelarNotaRequest request);
+
+    /** Registra Carta de Correção Eletrônica exclusivamente para NF-e autorizada. */
+    EventoFiscal cartaCorrecao(CartaCorrecaoRequest request);
 
     /**
      * Inutiliza uma numeração que foi "pulada" por erros ou outros motivos.

@@ -125,6 +125,39 @@ public class SefazComunicacaoService {
         }
     }
 
+    public RetornoSefaz enviarCartaCorrecao(String chaveAcesso, String correcao, int sequencia,
+                                             String uf, byte[] pfxBytes, String senhaCert, boolean homologacao) {
+        try {
+            String xmlEvento = buildXmlCartaCorrecao(chaveAcesso, correcao, sequencia, homologacao);
+            xmlEvento = assinaturaDigitalService.assinarEvento(xmlEvento, pfxBytes, senhaCert);
+            xsdValidationService.validarCartaCorrecaoAssinada(xmlEvento);
+            return enviarEvento(xmlEvento, uf, pfxBytes, senhaCert, homologacao);
+        } catch (FiscalProviderException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Falha de transporte na CC-e; o resultado externo pode ser desconhecido.", e);
+            throw new FiscalProviderException("Não foi possível confirmar o resultado da CC-e.", true, e);
+        }
+    }
+
+    private RetornoSefaz enviarEvento(String xmlEvento, String uf, byte[] pfxBytes,
+                                      String senhaCert, boolean homologacao) throws Exception {
+        String url = NotaFiscalConfig.getWebserviceUrl(uf, "55", homologacao, NotaFiscalConfig.SefazService.EVENTO);
+        HttpURLConnection conn = criarConexao(url, pfxBytes, senhaCert);
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/soap+xml; charset=utf-8");
+        conn.setRequestProperty("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento");
+        conn.setDoOutput(true);
+        String soap = "<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body>"
+                + "<nfeRecepcaoEvento xmlns=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4\">"
+                + "<nfeDadosMsg>" + xmlEvento + "</nfeDadosMsg></nfeRecepcaoEvento></soap12:Body></soap12:Envelope>";
+        try (OutputStream os = conn.getOutputStream()) { os.write(soap.getBytes(StandardCharsets.UTF_8)); }
+        int httpCode = conn.getResponseCode();
+        InputStream stream = httpCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        if (httpCode >= 500) throw new IOException("Autorizador indisponível (HTTP " + httpCode + ").");
+        return parseRetornoSefaz(lerStream(stream));
+    }
+
     public RetornoSefaz consultarSituacao(String chaveAcesso, String uf, byte[] pfxBytes,
                                            String senhaCert, boolean homologacao) {
         if (chaveAcesso == null || !chaveAcesso.matches("[0-9]{44}"))
@@ -261,6 +294,27 @@ public class SefazComunicacaoService {
                 + "</infEvento>"
                 + "</evento>"
                 + "</envEvento>";
+    }
+
+    static final String CONDICOES_USO_CCE = "A Carta de Correção é disciplinada pelo § 1º-A do art. 7º do Convênio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularização de erro ocorrido na emissão de documento fiscal, desde que o erro não esteja relacionado com: I - as variáveis que determinam o valor do imposto tais como: base de cálculo, alíquota, diferença de preço, quantidade, valor da operação ou da prestação; II - a correção de dados cadastrais que implique mudança do remetente ou do destinatário; III - a data de emissão ou de saída.";
+
+    String buildXmlCartaCorrecao(String chaveAcesso, String correcao, int sequencia, boolean homologacao) {
+        if (chaveAcesso == null || !chaveAcesso.matches("[0-9]{44}")) throw new IllegalArgumentException("Chave de acesso inválida para CC-e.");
+        String texto = correcao == null ? "" : correcao.trim();
+        if (texto.length() < 15 || texto.length() > 1000 || texto.chars().anyMatch(c -> c < 0x20))
+            throw new IllegalArgumentException("Correção deve conter entre 15 e 1000 caracteres válidos.");
+        if (sequencia < 1 || sequencia > 20) throw new IllegalArgumentException("A CC-e admite sequências de 1 a 20.");
+        String agora = java.time.OffsetDateTime.now(java.time.ZoneId.of("America/Sao_Paulo"))
+                .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String seqId = String.format("%02d", sequencia);
+        return "<envEvento versao=\"1.00\" xmlns=\"http://www.portalfiscal.inf.br/nfe\"><idLote>1</idLote>"
+                + "<evento versao=\"1.00\"><infEvento Id=\"ID110110" + chaveAcesso + seqId + "\">"
+                + "<cOrgao>" + chaveAcesso.substring(0, 2) + "</cOrgao><tpAmb>" + (homologacao ? 2 : 1) + "</tpAmb>"
+                + "<CNPJ>" + chaveAcesso.substring(6, 20) + "</CNPJ><chNFe>" + chaveAcesso + "</chNFe>"
+                + "<dhEvento>" + agora + "</dhEvento><tpEvento>110110</tpEvento><nSeqEvento>" + sequencia + "</nSeqEvento>"
+                + "<verEvento>1.00</verEvento><detEvento versao=\"1.00\"><descEvento>Carta de Correcao</descEvento>"
+                + "<xCorrecao>" + escapeXml(texto) + "</xCorrecao><xCondUso>" + escapeXml(CONDICOES_USO_CCE)
+                + "</xCondUso></detEvento></infEvento></evento></envEvento>";
     }
 
     private String escapeXml(String valor) {

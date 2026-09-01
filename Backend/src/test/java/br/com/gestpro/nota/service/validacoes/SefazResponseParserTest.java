@@ -52,6 +52,25 @@ class SefazResponseParserTest {
         assertThat(xml).contains("<tpAmb>2</tpAmb>").contains("&amp;");
     }
 
+    @Test void montaCartaCorrecaoComIdSequencialCondicoesEConteudoEscapado() {
+        String chave = "35260900000000000191550010000000011000000010";
+        String xml = service.buildXmlCartaCorrecao(chave,
+                "Corrigir informação complementar <campo> & revisão", 2, true);
+        assertThat(xml).contains("Id=\"ID110110" + chave + "02\"")
+                .contains("<tpEvento>110110</tpEvento>")
+                .contains("<nSeqEvento>2</nSeqEvento>")
+                .contains("Corrigir informação complementar &lt;campo&gt; &amp; revisão")
+                .contains("A Carta de Correção é disciplinada");
+        assertThat(xml).doesNotContain("<campo>");
+    }
+
+    @Test void cartaCorrecaoRejeitaSequenciaForaDoLimite() {
+        assertThatThrownBy(() -> service.buildXmlCartaCorrecao(
+                "35260900000000000191550010000000011000000010",
+                "Correção suficientemente detalhada", 21, true))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private String resposta(String codigo, String motivo) {
         return "<retEnviNFe xmlns=\"http://www.portalfiscal.inf.br/nfe\"><cStat>104</cStat><xMotivo>Lote processado</xMotivo>"
                 + "<protNFe><infProt><cStat>" + codigo + "</cStat><xMotivo>" + motivo

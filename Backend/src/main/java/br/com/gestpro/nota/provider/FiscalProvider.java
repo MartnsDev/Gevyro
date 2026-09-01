@@ -8,6 +8,7 @@ public interface FiscalProvider {
     Set<TipoNota> documentosSuportados();
     AutorizacaoResultado autorizar(AutorizacaoComando comando);
     EventoResultado cancelar(CancelamentoComando comando);
+    EventoResultado cartaCorrecao(CartaCorrecaoComando comando);
     SituacaoResultado consultarSituacao(ConsultaSituacaoComando comando);
     EventoResultado inutilizar(InutilizacaoComando comando);
 
@@ -15,6 +16,8 @@ public interface FiscalProvider {
                               byte[] certificado, String senhaCertificado) {}
     record CancelamentoComando(String chaveAcesso, String protocolo, String justificativa, String uf,
                                boolean homologacao, byte[] certificado, String senhaCertificado) {}
+    record CartaCorrecaoComando(String chaveAcesso, String correcao, int sequencia, String uf,
+                                boolean homologacao, byte[] certificado, String senhaCertificado) {}
     record ConsultaSituacaoComando(String chaveAcesso, String uf, boolean homologacao,
                                    byte[] certificado, String senhaCertificado) {}
     record InutilizacaoComando(String cnpj, String uf, TipoNota tipo, int ano, int serie,

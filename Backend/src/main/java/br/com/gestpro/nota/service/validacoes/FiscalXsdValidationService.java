@@ -24,16 +24,19 @@ public class FiscalXsdValidationService {
     static final int MAX_XML_BYTES = 2 * 1024 * 1024;
     private static final String BASE = "/fiscal/nfe/PL_010f_v1.04/";
     private static final String BASE_INUTILIZACAO = "/fiscal/nfe/inutilizacao_v4.00/";
+    private static final String BASE_CCE = "/fiscal/nfe/cce_v1.00/";
     private static final String ENTRYPOINT = "nfe_v4.00.xsd";
 
     private Schema schemaNfe;
     private Schema schemaInutilizacao;
+    private Schema schemaCce;
 
     @PostConstruct
     void carregarSchema() {
         try {
             schemaNfe = compilarSchema(BASE, ENTRYPOINT);
             schemaInutilizacao = compilarSchema(BASE_INUTILIZACAO, "inutNFe_v4.00.xsd");
+            schemaCce = compilarSchema(BASE_CCE, "envCCe_v1.00.xsd");
         } catch (Exception erro) {
             throw new IllegalStateException("Pacote XSD fiscal oficial indisponível ou inválido: "
                     + FiscalSpecificationVersion.NFE_SCHEMA_PACKAGE, erro);
@@ -58,6 +61,10 @@ public class FiscalXsdValidationService {
 
     public void validarInutilizacaoAssinada(String xml) {
         validar(xml, schemaInutilizacao, "inutNFe_v4.00");
+    }
+
+    public void validarCartaCorrecaoAssinada(String xml) {
+        validar(xml, schemaCce, "Evento_CCe_PL_v1.01");
     }
 
     private void validar(String xml, Schema schema, String versao) {
