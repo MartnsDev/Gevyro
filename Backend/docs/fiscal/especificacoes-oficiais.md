@@ -36,3 +36,20 @@ Fonte oficial: https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/doc
 - Resultado desconhecido bloqueia reenvio cego; a consulta de situação deve ocorrer antes de qualquer nova transmissão.
 - O circuit breaker envolve a fronteira externa, sem alterar validação, idempotência ou máquina de estados.
 - A fila baseada em banco foi escolhida porque o projeto já depende de banco transacional e não possui RabbitMQ/Kafka. O job e a operação idempotente sobrevivem a reinícios e são reconciliados de forma transacional.
+
+## Rate limiting distribuído
+
+O limitador fiscal usa um script Lua atômico no Redis. A chave combina operação, empresa, hash do usuário e hash do endereço remoto; e-mail e IP não ficam legíveis no Redis. A indisponibilidade do Redis fecha operações fiscais sensíveis com HTTP 503, pois uma instância isolada não pode garantir o limite distribuído.
+
+| Operação | Padrão | Variável de ambiente |
+| --- | ---: | --- |
+| Emissão e eventos críticos | 30/minuto | `FISCAL_RATE_EMISSAO_PER_MINUTE` |
+| Consultas e downloads | 120/minuto | `FISCAL_RATE_CONSULTA_PER_MINUTE` |
+| Upload/substituição de certificado | 5/hora | `FISCAL_RATE_CERTIFICADO_PER_HOUR` |
+| Exportações em massa | 10/minuto | `FISCAL_RATE_EXPORTACAO_PER_MINUTE` |
+
+Quando o limite é excedido a API retorna HTTP 429 e `Retry-After` calculado pelo TTL do contador Redis.
+
+## Segredos de teste
+
+Nenhuma chave criptográfica fixa é versionada. Testes criam uma chave AES descartável em memória. A variável `FISCAL_MASTER_KEY` de staging/produção deve vir do secret manager, possuir 32 bytes codificados em Base64 e nunca reutilizar qualquer valor visto em commits, logs, screenshots ou alertas de scanner.

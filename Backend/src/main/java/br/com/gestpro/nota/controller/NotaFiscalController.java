@@ -43,21 +43,20 @@ public class NotaFiscalController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> buscarPorId(@PathVariable Long id, Authentication auth) {
-        try {
-            notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
-            return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(notaFiscalService.buscarPorId(id))));
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> buscarPorId(@PathVariable Long id, Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
+        NotaFiscal nota = notaFiscalService.buscarPorId(id);
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, nota.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal");
+        return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<NotaFiscalResumoResponse>>> listar(
             @RequestParam Long empresaId,
-            @RequestParam(required = false) NotaFiscalStatus status, Authentication auth
+            @RequestParam(required = false) NotaFiscalStatus status, Authentication auth, HttpServletRequest httpRequest
     ) {
         notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal");
         return ResponseEntity.ok(ApiResponse.ok(notaFiscalService.listar(empresaId, status)));
     }
 
@@ -85,9 +84,11 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/cancelar")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@RequestBody CancelarNotaRequest request, Authentication auth) {
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@RequestBody CancelarNotaRequest request, Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
+        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/cancelar");
         try {
-            notaFiscalServiceImpl.validarAcessoNota(request.getNotaId(), auth.getName());
             NotaFiscal nota = notaFiscalService.cancelar(request);
             fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CANCELADO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
@@ -97,9 +98,10 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/inutilizar")
-    public ResponseEntity<ApiResponse<Void>> inutilizar(@RequestBody InutilizarRequest request, Authentication auth) {
+    public ResponseEntity<ApiResponse<Void>> inutilizar(@RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, request.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/inutilizar");
         try {
-            notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
             notaFiscalService.inutilizar(request);
             return ResponseEntity.ok(ApiResponse.ok(null));
         } catch (Exception e) {
@@ -108,8 +110,9 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/transmitir-contingencias")
-    public ResponseEntity<ApiResponse<Map<String, Integer>>> transmitirContingencias(@RequestParam Long empresaId, Authentication auth) {
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> transmitirContingencias(@RequestParam Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/transmitir-contingencias");
         int qtd = notaFiscalService.transmitirContingencias(empresaId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("transmitidas", qtd)));
     }
@@ -117,9 +120,11 @@ public class NotaFiscalController {
     // DOWNLOADS
 
     @GetMapping("/{id}/xml")
-    public ResponseEntity<byte[]> baixarXml(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<byte[]> baixarXml(@PathVariable Long id, Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/xml");
         try {
-            notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
             byte[] xml = notaFiscalService.baixarXml(id);
             NotaFiscal nota = notaFiscalService.buscarPorId(id);
             fiscalAuditService.registrar(nota.getEmpresaId(), id, "XML_BAIXADO", auth.getName(), "SUCESSO", null);
@@ -133,9 +138,11 @@ public class NotaFiscalController {
     }
 
     @GetMapping("/{id}/danfe")
-    public ResponseEntity<Object> baixarDanfe(@PathVariable Long id, Authentication auth) {
+    public ResponseEntity<Object> baixarDanfe(@PathVariable Long id, Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/danfe");
         try {
-            notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
             byte[] pdf = notaFiscalService.gerarDanfePdf(id);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
@@ -150,10 +157,11 @@ public class NotaFiscalController {
     @GetMapping("/exportar/xml-mensal")
     public ResponseEntity<Object> exportarXmlsMensal(
             @RequestParam Long empresaId,
-            @RequestParam String periodo, Authentication auth
+            @RequestParam String periodo, Authentication auth, HttpServletRequest httpRequest
     ) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/xml-mensal");
         try {
-            notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
             YearMonth ym = YearMonth.parse(periodo);
             byte[] zip = notaFiscalService.gerarZipXmlsMensal(empresaId, ym);
             HttpHeaders headers = new HttpHeaders();
@@ -172,10 +180,11 @@ public class NotaFiscalController {
     public ResponseEntity<Object> exportarSped(
             @RequestParam Long empresaId,
             @RequestParam String periodo,
-            @RequestParam String tipo, Authentication auth
+            @RequestParam String tipo, Authentication auth, HttpServletRequest httpRequest
     ) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/sped");
         try {
-            notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
             YearMonth ym = YearMonth.parse(periodo);
             byte[] sped = notaFiscalService.gerarArquivoSped(empresaId, ym, tipo);
             HttpHeaders headers = new HttpHeaders();
@@ -199,10 +208,10 @@ public class NotaFiscalController {
             @RequestParam("arquivo") MultipartFile arquivo,
             @RequestParam("senha") String senha, Authentication auth, HttpServletRequest httpRequest
     ) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
+                auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
         try {
-            notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
-            rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
-                    auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
             byte[] pfxBytes = arquivo.getBytes();
             Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
             fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
@@ -226,21 +235,24 @@ public class NotaFiscalController {
     }
 
     @GetMapping("/chave/{chaveAcesso}")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> buscarPorChave(@PathVariable String chaveAcesso, Authentication auth) {
-        try {
-            NotaFiscal nota=notaFiscalService.buscarPorChaveAcesso(chaveAcesso);
-            notaFiscalServiceImpl.validarAcessoEmpresa(nota.getEmpresaId(), auth.getName());
-            return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> buscarPorChave(@PathVariable String chaveAcesso, Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal nota=notaFiscalService.buscarPorChaveAcesso(chaveAcesso);
+        notaFiscalServiceImpl.validarAcessoEmpresa(nota.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, nota.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/chave");
+        return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     @GetMapping("/estatisticas")
     public ResponseEntity<ApiResponse<EstatisticasResponse>> getEstatisticas(
-            @RequestParam Long empresaId, Authentication auth
+            @RequestParam Long empresaId, Authentication auth, HttpServletRequest httpRequest
     ) {
         notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/estatisticas");
         return ResponseEntity.ok(ApiResponse.ok(notaFiscalService.getEstatisticas(empresaId)));
+    }
+
+    private void limitar(DistributedRateLimitService.Operacao operacao, Long empresaId, Authentication auth,
+                         HttpServletRequest request, String path) {
+        rateLimit.verificar(operacao, empresaId, auth.getName(), request.getRemoteAddr(), path);
     }
 }

@@ -16,8 +16,7 @@ class FiscalXmlServiceTest {
 
     @BeforeEach void setup() {
         repository = mock(XmlFiscalRepository.class);
-        FiscalEncryptionService encryption = new FiscalEncryptionService(
-                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=");
+        FiscalEncryptionService encryption = new FiscalEncryptionService(TestFiscalKeys.ephemeralKey());
         encryption.validateKey();
         service = new FiscalXmlService(repository, encryption);
     }

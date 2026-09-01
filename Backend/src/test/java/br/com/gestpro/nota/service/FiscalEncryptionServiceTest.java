@@ -12,7 +12,7 @@ class FiscalEncryptionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new FiscalEncryptionService("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=");
+        service = new FiscalEncryptionService(TestFiscalKeys.ephemeralKey());
         service.validateKey();
     }
 
