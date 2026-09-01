@@ -140,15 +140,12 @@ public class NotaFiscalController {
         NotaFiscal acesso = notaFiscalService.buscarPorId(id);
         notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
         limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/danfe");
-        try {
-            byte[] pdf = notaFiscalService.gerarDanfePdf(id);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDisposition(ContentDisposition.attachment().filename("danfe-" + id + ".pdf").build());
-            return ResponseEntity.ok().headers(headers).body(pdf);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro("Erro ao gerar DANFE: " + e.getMessage()));
-        }
+        byte[] pdf = notaFiscalService.gerarDanfePdf(id);
+        fiscalAuditService.registrar(acesso.getEmpresaId(), id, "DANFE_BAIXADO", auth.getName(), "SUCESSO", null);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment().filename("danfe-" + id + ".pdf").build());
+        return ResponseEntity.ok().headers(headers).body(pdf);
     }
 
     // ÁREA DO CONTADOR

@@ -54,6 +54,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final ConfiguracaoFiscalEmpresaRepository configuracaoFiscalRepository;
     private final FiscalXmlService fiscalXmlService;
     private final FiscalXsdValidationService xsdValidationService;
+    private final DanfePdfService danfePdfService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -379,7 +380,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     @Override
     @Transactional(readOnly = true)
     public byte[] gerarDanfePdf(Long notaId) {
-        throw new UnsupportedOperationException("Geração de PDF do DANFE ainda não implementada.");
+        return danfePdfService.gerar(notaId);
     }
 
     @Override

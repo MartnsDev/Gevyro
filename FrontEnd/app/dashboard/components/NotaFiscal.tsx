@@ -479,6 +479,7 @@ export default function NotaFiscalPage() {
                       <td style={{ padding: "16px" }}><StatusBadge status={n.status} /></td>
                       <td style={{ padding: "16px", display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button onClick={() => setNotaSelecionada(n)} style={btnStyle}><Eye size={14}/> Ver</button>
+                        {n.status === "AUTORIZADA" && n.tipo === "NFE" && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${n.id}/danfe`, `danfe-${n.numeroNota}.pdf`)} style={{...btnStyle, color: theme.primary, borderColor: theme.primaryAlpha}}><FileText size={14}/> DANFE</button>}
                         {n.status === "AUTORIZADA" && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${n.id}/xml`, `nf-${n.numeroNota}.xml`)} style={{...btnStyle, color: theme.primary, borderColor: theme.primaryAlpha}}><Download size={14}/> XML</button>}
                         {n.status === "DIGITACAO" && <button onClick={() => handleExcluir(n.id)} style={{...btnStyle, color: theme.danger, borderColor: theme.dangerAlpha}}><Trash2 size={14}/></button>}
                       </td>
@@ -656,7 +657,7 @@ export default function NotaFiscalPage() {
                   <div style={{ marginTop: 30, display: "flex", gap: 10 }}>
                       {notaSelecionada.status === "AUTORIZADA" && (
                           <>
-                             <button disabled title="Gerador de DANFE ainda não configurado" style={{ ...btnStyle, flex:1,justifyContent:"center",cursor:"not-allowed",opacity:.55 }}><FileText size={16}/> DANFE em breve</button>
+                             {notaSelecionada.tipo === "NFE" && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/danfe`, `danfe-${notaSelecionada.numeroNota}.pdf`)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.primary,borderColor:theme.primaryAlpha }}><FileText size={16}/> DANFE</button>}
                              <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/xml`, `nf-${notaSelecionada.numeroNota}.xml`)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.primary, borderColor: theme.primaryAlpha }}><Download size={16}/> XML</button>
                              <button onClick={() => handleCancelar(notaSelecionada.id)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.danger, borderColor: theme.dangerAlpha, background: theme.dangerAlpha }}><Trash2 size={16}/> Cancelar</button>
                           </>
