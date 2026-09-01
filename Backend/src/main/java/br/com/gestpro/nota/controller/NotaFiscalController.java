@@ -98,15 +98,13 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/inutilizar")
-    public ResponseEntity<ApiResponse<Void>> inutilizar(@RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<Void>> inutilizar(@jakarta.validation.Valid @RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, request.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/inutilizar");
-        try {
-            notaFiscalService.inutilizar(request);
-            return ResponseEntity.ok(ApiResponse.ok(null));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
-        }
+        notaFiscalService.inutilizar(request);
+        fiscalAuditService.registrar(request.getEmpresaId(), null, "NUMERACAO_INUTILIZADA", auth.getName(), "SUCESSO",
+                "tipo=" + request.getTipo() + ",serie=" + request.getSerie() + ",faixa=" + request.getNumeroInicio() + "-" + request.getNumeroFim());
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
     @PostMapping("/transmitir-contingencias")

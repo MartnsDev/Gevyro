@@ -85,5 +85,8 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
 
     long countByEmpresaIdAndStatus(Long empresaId, NotaFiscalStatus status);
 
+    boolean existsByEmpresaIdAndTipoAndSerieAndNumeroNotaBetween(
+            Long empresaId, TipoNota tipo, String serie, Long numeroInicio, Long numeroFim);
+
 
 }

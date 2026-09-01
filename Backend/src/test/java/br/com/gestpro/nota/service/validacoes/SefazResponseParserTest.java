@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SefazResponseParserTest {
-    private final SefazComunicacaoService service = new SefazComunicacaoService(null);
+    private final SefazComunicacaoService service = new SefazComunicacaoService(null, null);
 
     @Test void loteProcessadoUsaAutorizacaoInterna() {
         var retorno = service.parseRetornoSefaz(resposta("100", "Autorizado o uso da NF-e"));
@@ -43,6 +43,13 @@ class SefazResponseParserTest {
         assertThatThrownBy(() -> service.buildXmlCancelamento(
                 "123", "abc", "Justificativa suficientemente longa", true))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void montaInutilizacaoComIdOficialEConteudoEscapado() {
+        String xml = service.buildXmlInutilizacao("00.000.000/0001-91", "SP", "55", 2026, 1,
+                10, 12, "Numeração não utilizada & inutilizada", true);
+        assertThat(xml).contains("Id=\"ID35260000000000019155001000000010000000012\"");
+        assertThat(xml).contains("<tpAmb>2</tpAmb>").contains("&amp;");
     }
 
     private String resposta(String codigo, String motivo) {

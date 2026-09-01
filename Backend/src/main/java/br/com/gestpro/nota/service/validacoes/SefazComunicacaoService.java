@@ -30,6 +30,7 @@ import java.util.Set;
 public class SefazComunicacaoService {
 
     private final AssinaturaDigitalService assinaturaDigitalService;
+    private final FiscalXsdValidationService xsdValidationService;
 
     // A SEFAZ pode responder lentamente em períodos de pico.
     private static final int TIMEOUT_CONEXAO = 30_000;
@@ -153,6 +154,55 @@ public class SefazComunicacaoService {
             if (e instanceof FiscalProviderException fiscal) throw fiscal;
             throw new FiscalProviderException("Não foi possível consultar a situação fiscal.", false, e);
         }
+    }
+
+    public RetornoSefaz inutilizarNumeracao(String cnpj, String uf, String modelo, int ano, int serie,
+                                             long inicio, long fim, String justificativa,
+                                             byte[] pfxBytes, String senhaCert, boolean homologacao) {
+        try {
+            String xml = buildXmlInutilizacao(cnpj, uf, modelo, ano, serie, inicio, fim, justificativa, homologacao);
+            String assinado = assinaturaDigitalService.assinarInutilizacao(xml, pfxBytes, senhaCert);
+            xsdValidationService.validarInutilizacaoAssinada(assinado);
+            String url = NotaFiscalConfig.getWebserviceUrl(uf, modelo, homologacao,
+                    NotaFiscalConfig.SefazService.INUTILIZACAO);
+            String soap = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+                    + "<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body>"
+                    + "<nfeInutilizacaoNF xmlns=\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4\">"
+                    + "<nfeDadosMsg>" + assinado + "</nfeDadosMsg></nfeInutilizacaoNF></soap12:Body></soap12:Envelope>";
+            HttpURLConnection conn = criarConexao(url, pfxBytes, senhaCert);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/soap+xml; charset=utf-8");
+            conn.setRequestProperty("SOAPAction", "http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4/nfeInutilizacaoNF");
+            conn.setDoOutput(true);
+            try (OutputStream os = conn.getOutputStream()) { os.write(soap.getBytes(StandardCharsets.UTF_8)); }
+            int httpCode = conn.getResponseCode();
+            InputStream stream = httpCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+            if (httpCode >= 500) throw new IOException("Autorizador indisponível (HTTP " + httpCode + ").");
+            return parseRetornoSefaz(lerStream(stream));
+        } catch (Exception e) {
+            if (e instanceof FiscalProviderException fiscal) throw fiscal;
+            throw new FiscalProviderException("Não foi possível confirmar a inutilização fiscal.", true, e);
+        }
+    }
+
+    String buildXmlInutilizacao(String cnpj, String uf, String modelo, int ano, int serie,
+                                long inicio, long fim, String justificativa, boolean homologacao) {
+        String documento = cnpj == null ? "" : cnpj.replaceAll("\\D", "");
+        if (!documento.matches("[0-9]{14}")) throw new IllegalArgumentException("CNPJ inválido para inutilização.");
+        if (!modelo.matches("55|65")) throw new IllegalArgumentException("Modelo fiscal inválido para inutilização.");
+        if (ano < 2006 || ano > java.time.Year.now().getValue()) throw new IllegalArgumentException("Ano inválido para inutilização.");
+        if (serie < 0 || serie > 999 || inicio < 1 || fim < inicio || fim > 999999999L)
+            throw new IllegalArgumentException("Série ou faixa inválida para inutilização.");
+        String motivo = justificativa == null ? "" : justificativa.trim();
+        if (motivo.length() < 15 || motivo.length() > 255) throw new IllegalArgumentException("Justificativa inválida para inutilização.");
+        String cUf = GerarChaveAcesso.getCodigoUf(uf);
+        String anoCurto = String.format("%02d", ano % 100);
+        String id = "ID" + cUf + anoCurto + documento + modelo + String.format("%03d%09d%09d", serie, inicio, fim);
+        return "<inutNFe xmlns=\"http://www.portalfiscal.inf.br/nfe\" versao=\"4.00\"><infInut Id=\"" + id + "\">"
+                + "<tpAmb>" + (homologacao ? 2 : 1) + "</tpAmb><xServ>INUTILIZAR</xServ><cUF>" + cUf + "</cUF>"
+                + "<ano>" + anoCurto + "</ano><CNPJ>" + documento + "</CNPJ><mod>" + modelo + "</mod>"
+                + "<serie>" + serie + "</serie><nNFIni>" + inicio + "</nNFIni><nNFFin>" + fim + "</nNFFin>"
+                + "<xJust>" + escapeXml(motivo) + "</xJust></infInut></inutNFe>";
     }
 
     /**
@@ -283,7 +333,7 @@ public class SefazComunicacaoService {
             retorno.setDataHoraRecebimento(dhRecbto);
             // Em respostas compostas, getTagValue seleciona o resultado interno
             // (protNFe/retEvento), nunca o mero "lote processado" externo (104/128).
-            retorno.setSucesso(Set.of("100", "135", "136", "155").contains(cStat));
+            retorno.setSucesso(Set.of("100", "102", "135", "136", "155").contains(cStat));
 
             return retorno;
         } catch (Exception e) {

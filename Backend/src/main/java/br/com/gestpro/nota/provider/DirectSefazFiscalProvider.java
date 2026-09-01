@@ -41,4 +41,10 @@ public class DirectSefazFiscalProvider implements FiscalProvider {
         };
         return new SituacaoResultado(situacao, r.getCodigo(), r.getMensagem(), r.getProtocolo(), r.getXmlRetorno());
     }
+    public EventoResultado inutilizar(InutilizacaoComando c) {
+        var r = circuitBreaker.executeSupplier(() -> gateway.inutilizarNumeracao(c.cnpj(), c.uf(),
+                c.tipo().getModelo(), c.ano(), c.serie(), c.numeroInicio(), c.numeroFim(), c.justificativa(),
+                c.certificado(), c.senhaCertificado(), c.homologacao()));
+        return new EventoResultado(r.isSucesso(), r.getCodigo(), r.getMensagem(), r.getProtocolo(), r.getXmlRetorno());
+    }
 }

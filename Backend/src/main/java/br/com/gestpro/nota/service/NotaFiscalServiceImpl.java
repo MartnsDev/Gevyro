@@ -288,10 +288,46 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
     @Override
     public void inutilizar(InutilizarRequest request) {
-        log.info("Inutilizando numeração: empresa={} tipo={} série={} de={} até={}",
-                request.getEmpresaId(), request.getTipo(), request.getSerie(),
-                request.getNumeroInicio(), request.getNumeroFim());
-        // TODO: implementar chamada ao webservice nfeInutilizacaoNF4
+        if (request.getTipo() == null || request.getTipo() == br.com.gestpro.nota.TipoNota.NFSE)
+            throw new ApiException("A inutilização 4.00 é permitida somente para NF-e ou NFC-e.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar");
+        int serie;
+        try { serie = Integer.parseInt(request.getSerie()); }
+        catch (Exception e) { throw new ApiException("Série fiscal inválida.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar"); }
+        if (request.getNumeroInicio() == null || request.getNumeroFim() == null
+                || request.getNumeroFim() < request.getNumeroInicio())
+            throw new ApiException("Faixa de numeração inválida.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar");
+        if (request.getAno() == null || request.getAno() > java.time.Year.now().getValue())
+            throw new ApiException("Ano fiscal inválido.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar");
+        String serieNormalizada = String.valueOf(serie);
+        if (notaFiscalRepository.existsByEmpresaIdAndTipoAndSerieAndNumeroNotaBetween(request.getEmpresaId(),
+                request.getTipo(), serieNormalizada, request.getNumeroInicio(), request.getNumeroFim()))
+            throw new ApiException("A faixa contém número já reservado ou utilizado e não pode ser inutilizada.",
+                    HttpStatus.CONFLICT, "/api/nota-fiscal/inutilizar");
+
+        Empresa empresa = empresaRepository.findById(request.getEmpresaId())
+                .orElseThrow(() -> new ApiException("Empresa não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/inutilizar"));
+        String cnpj = empresa.getCnpj() == null ? "" : empresa.getCnpj().replaceAll("\\D", "");
+        if (!cnpj.matches("[0-9]{14}") || empresa.getUf() == null || empresa.getUf().isBlank())
+            throw new ApiException("CNPJ e UF fiscais válidos são obrigatórios para inutilização.",
+                    HttpStatus.PRECONDITION_FAILED, "/api/nota-fiscal/inutilizar");
+
+        try (CertificateService.Material material = certificateService.carregar(request.getEmpresaId())) {
+            FiscalProvider provider = fiscalProviderRegistry.oficialPara(request.getTipo());
+            FiscalProvider.EventoResultado resultado = provider.inutilizar(new FiscalProvider.InutilizacaoComando(
+                    cnpj, empresa.getUf(), request.getTipo(), request.getAno(), serie,
+                    request.getNumeroInicio(), request.getNumeroFim(), request.getJustificativa().trim(),
+                    isHomologacao(request.getEmpresaId()), material.arquivo(), material.senha()));
+            if (!resultado.aceito())
+                throw new ApiException("A SEFAZ rejeitou a inutilização: [" + resultado.codigo() + "] " + resultado.motivo(),
+                        HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/inutilizar");
+            log.info("Inutilização fiscal aceita: empresa={} tipo={} série={} faixa={}-{} protocolo={}",
+                    request.getEmpresaId(), request.getTipo(), serie, request.getNumeroInicio(), request.getNumeroFim(), resultado.protocolo());
+        } catch (ApiException e) {
+            throw e;
+        } catch (br.com.gestpro.nota.provider.FiscalProviderException e) {
+            throw new ApiException("Não foi possível confirmar a inutilização. Consulte a SEFAZ antes de repetir.",
+                    HttpStatus.BAD_GATEWAY, "/api/nota-fiscal/inutilizar");
+        }
     }
 
     @Override

@@ -37,6 +37,10 @@ public class AssinaturaDigitalService {
         return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infEvento");
     }
 
+    public String assinarInutilizacao(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infInut");
+    }
+
     private String assinarElemento(String xmlConteudo, byte[] pfxBytes, String senhaCert,
                                    String elementoLocal) throws Exception {
         // Carrega o certificado do KeyStore
