@@ -7,7 +7,7 @@ import {
   FileText, Upload, Download, Plus, Search, CheckCircle,
   XCircle, ShieldCheck, FileArchive, Send, Trash2, Loader2,
   AlertTriangle, Receipt, Briefcase, Eye, X, RefreshCw, 
-  Building2, ChevronLeft, ChevronRight, TrendingUp, Store
+  Building2, ChevronLeft, ChevronRight, TrendingUp, Store, FilePenLine
 } from "lucide-react";
 import { useEmpresa } from "../context/Empresacontext";
 import { fetchAuth } from "@/lib/api-v2";
@@ -123,6 +123,10 @@ export default function NotaFiscalPage() {
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroBusca, setFiltroBusca] = useState("");
   const [notaSelecionada, setNotaSelecionada] = useState<any>(null);
+  const [notaCartaCorrecao, setNotaCartaCorrecao] = useState<any>(null);
+  const [textoCartaCorrecao, setTextoCartaCorrecao] = useState("");
+  const [cienteLimitesCce, setCienteLimitesCce] = useState(false);
+  const [enviandoCce, setEnviandoCce] = useState(false);
 
   const [tipoNota, setTipoNota] = useState<TipoNota>("NFE");
   const [naturezaOp, setNaturezaOp] = useState("Venda de Mercadoria");
@@ -326,6 +330,52 @@ export default function NotaFiscalPage() {
       await fetchSeguro(`${API_BASE}/cancelar`, { method: "POST", body: JSON.stringify({ notaId: id, justificativa: motivo }) });
       toast.success("Nota Cancelada com sucesso!"); setNotaSelecionada(null); carregarNotas();
     } catch (e: any) { setErroApi(e.message); }
+  };
+
+  const abrirCartaCorrecao = (nota: any) => {
+    if (nota?.tipo !== "NFE" || nota?.status !== "AUTORIZADA") return;
+    setNotaSelecionada(null);
+    setNotaCartaCorrecao(nota);
+    setTextoCartaCorrecao("");
+    setCienteLimitesCce(false);
+  };
+
+  const fecharCartaCorrecao = () => {
+    if (enviandoCce) return;
+    setNotaCartaCorrecao(null);
+    setTextoCartaCorrecao("");
+    setCienteLimitesCce(false);
+  };
+
+  const handleCartaCorrecao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notaCartaCorrecao) return;
+    const correcao = textoCartaCorrecao.trim();
+    if (correcao.length < 15 || correcao.length > 1000) {
+      setErroApi("A correção deve conter entre 15 e 1000 caracteres.");
+      return;
+    }
+    if (!cienteLimitesCce) {
+      setErroApi("Confirme que a correção respeita as restrições legais da CC-e.");
+      return;
+    }
+    setEnviandoCce(true);
+    try {
+      const resposta = await fetchSeguro(`${API_BASE}/carta-correcao`, {
+        method: "POST",
+        body: JSON.stringify({ notaId: notaCartaCorrecao.id, correcao }),
+      });
+      const sequencia = resposta?.dados?.sequencia;
+      toast.success(`CC-e${sequencia ? ` nº ${sequencia}` : ""} registrada na SEFAZ.`);
+      setNotaCartaCorrecao(null);
+      setTextoCartaCorrecao("");
+      setCienteLimitesCce(false);
+      carregarNotas();
+    } catch (e: any) {
+      setErroApi(e.message);
+    } finally {
+      setEnviandoCce(false);
+    }
   };
 
   const handleExcluir = async (id: number) => {
@@ -658,12 +708,52 @@ export default function NotaFiscalPage() {
                       {notaSelecionada.status === "AUTORIZADA" && (
                           <>
                              {notaSelecionada.tipo === "NFE" && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/danfe`, `danfe-${notaSelecionada.numeroNota}.pdf`)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.primary,borderColor:theme.primaryAlpha }}><FileText size={16}/> DANFE</button>}
+                             {notaSelecionada.tipo === "NFE" && <button onClick={() => abrirCartaCorrecao(notaSelecionada)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.warning,borderColor:theme.warningAlpha }}><FilePenLine size={16}/> CC-e</button>}
                              <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/xml`, `nf-${notaSelecionada.numeroNota}.xml`)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.primary, borderColor: theme.primaryAlpha }}><Download size={16}/> XML</button>
                              <button onClick={() => handleCancelar(notaSelecionada.id)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.danger, borderColor: theme.dangerAlpha, background: theme.dangerAlpha }}><Trash2 size={16}/> Cancelar</button>
                           </>
                       )}
                   </div>
               </div>
+          </div>
+        )}
+
+        {notaCartaCorrecao && (
+          <div onClick={fecharCartaCorrecao} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1200, backdropFilter: "blur(6px)" }}>
+            <form onSubmit={handleCartaCorrecao} onClick={e => e.stopPropagation()} style={{ background: theme.bgCard, padding: 28, borderRadius: 18, border: `1px solid ${theme.border}`, width: 620, maxWidth: "94%", boxShadow: "0 25px 60px rgba(0,0,0,.5)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 19 }}>Carta de Correção Eletrônica</h2>
+                  <p style={{ margin: "5px 0 0", color: theme.textMuted, fontSize: 12 }}>NF-e {notaCartaCorrecao.numeroNota} · o novo evento substitui as correções anteriores.</p>
+                </div>
+                <button type="button" disabled={enviandoCce} onClick={fecharCartaCorrecao} aria-label="Fechar" style={{ background: "none", border: 0, color: theme.textMuted, cursor: "pointer" }}><X size={22}/></button>
+              </div>
+
+              <div style={{ padding: 14, borderRadius: 10, background: theme.warningAlpha, border: `1px solid rgba(245,158,11,.28)`, color: theme.textMain, fontSize: 12, lineHeight: 1.55, marginBottom: 18 }}>
+                <strong style={{ color: theme.warning }}>A CC-e não pode alterar:</strong>
+                <ul style={{ margin: "7px 0 0", paddingLeft: 18 }}>
+                  <li>base de cálculo, alíquota, preço, quantidade ou valor da operação;</li>
+                  <li>dados que mudem a identidade do remetente ou destinatário;</li>
+                  <li>data de emissão ou de saída.</li>
+                </ul>
+              </div>
+
+              <label htmlFor="texto-cce" style={lblStyle}>Correção a considerar</label>
+              <textarea id="texto-cce" autoFocus required minLength={15} maxLength={1000} value={textoCartaCorrecao} onChange={e => setTextoCartaCorrecao(e.target.value)} disabled={enviandoCce} placeholder="Descreva objetivamente o dado incorreto e a informação correta..." style={{ ...inpStyle, minHeight: 130, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }} />
+              <div style={{ textAlign: "right", color: textoCartaCorrecao.trim().length > 1000 ? theme.danger : theme.textMuted, fontSize: 11, marginTop: 5 }}>{textoCartaCorrecao.trim().length}/1000</div>
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 14, color: theme.textMuted, fontSize: 12, lineHeight: 1.45, cursor: "pointer" }}>
+                <input type="checkbox" checked={cienteLimitesCce} onChange={e => setCienteLimitesCce(e.target.checked)} disabled={enviandoCce} style={{ marginTop: 2 }} />
+                Confirmo que revisei as restrições acima e que esta correção não altera valores tributários, partes ou datas fiscais.
+              </label>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
+                <button type="button" onClick={fecharCartaCorrecao} disabled={enviandoCce} style={btnStyle}>Voltar</button>
+                <button type="submit" disabled={enviandoCce || !cienteLimitesCce || textoCartaCorrecao.trim().length < 15 || textoCartaCorrecao.trim().length > 1000} style={{ ...btnStyle, background: theme.warning, borderColor: theme.warning, color: "#111827", opacity: enviandoCce || !cienteLimitesCce || textoCartaCorrecao.trim().length < 15 ? .55 : 1, cursor: enviandoCce ? "wait" : "pointer" }}>
+                  {enviandoCce ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} Registrar na SEFAZ
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
