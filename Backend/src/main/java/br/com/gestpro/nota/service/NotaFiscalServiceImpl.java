@@ -53,6 +53,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final FiscalAuditService auditService;
     private final ConfiguracaoFiscalEmpresaRepository configuracaoFiscalRepository;
     private final FiscalXmlService fiscalXmlService;
+    private final FiscalXsdValidationService xsdValidationService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -206,6 +207,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             // 5. Assinatura Digital do XML
             log.info("Assinando digitalmente o XML com o certificado da empresa...");
             String xmlAssinado = assinaturaService.assinarXml(xmlBruto, certBytes, senhaCert);
+            xsdValidationService.validarNfeAssinada(xmlAssinado);
             nota.setXmlEnviado(xmlAssinado);
             nota.setStatus(NotaFiscalStatus.PROCESSANDO);
             notaFiscalRepository.save(nota);

@@ -8,7 +8,7 @@ Este registro impede que layouts e regras fiscais sejam tratados como conhecimen
 
 - Leiaute dos Web Services: 4.00.
 - Manual de Orientação do Contribuinte: versão 7.0.
-- Pacote de schemas em implementação: `010e_v1.01`, publicado em 2026-06-26, contemplando NT 2025.002 v1.40, NT 2026.002 v1.0 e NT 2026.003 v1.0.
+- Pacote oficial embarcado: `PL_010f_v1.04`, publicado em 2026-08-31, contemplando NT 2025.002 v1.50 e NT 2026.007 v1.00. O ZIP de origem e seu SHA-256 estão registrados junto aos XSDs.
 - Informe Técnico rastreado: 2025.002 v1.60.
 - Serviços que a implementação direta deve tratar separadamente: autorização, retorno da autorização, inutilização, consulta protocolo/situação, status do serviço e recepção de eventos.
 - Relação de autorizadores e endpoints não possui fallback universal: cada UF/autorizador, ambiente, modelo e serviço precisa de uma entrada oficial versionada.
