@@ -103,6 +103,21 @@ public class NotaFiscalConfig {
         };
     }
 
+    /** URLs oficiais de consulta NFC-e, verificadas individualmente por UF. */
+    public static String getNfceQrCodeUrl(String uf, boolean homologacao) {
+        if (!"SP".equalsIgnoreCase(uf))
+            throw new IllegalStateException("URL de QR Code NFC-e ainda não foi validada para a UF " + uf + ".");
+        return homologacao ? "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode"
+                : "https://www.nfce.fazenda.sp.gov.br/qrcode";
+    }
+
+    public static String getNfceConsultaUrl(String uf, boolean homologacao) {
+        if (!"SP".equalsIgnoreCase(uf))
+            throw new IllegalStateException("URL de consulta NFC-e ainda não foi validada para a UF " + uf + ".");
+        return homologacao ? "https://www.homologacao.nfce.fazenda.sp.gov.br/consulta"
+                : "https://www.nfce.fazenda.sp.gov.br/consulta";
+    }
+
     @Getter
     @AllArgsConstructor
     public static class SefazUrls {
