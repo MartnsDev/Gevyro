@@ -122,6 +122,16 @@ public class VendaServiceImpl implements VendaServiceInterface {
         venda.setDesconto(desconto);
         venda.setValorFinal(total.subtract(desconto).max(BigDecimal.ZERO));
 
+        if (dto.getFormaPagamento2() != null) {
+            if (dto.getFormaPagamento2() == dto.getFormaPagamento())
+                throw new ApiException("As formas do pagamento dividido devem ser diferentes.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
+            if (dto.getValorPagamento2() == null || dto.getValorPagamento2().signum() <= 0
+                    || dto.getValorPagamento2().compareTo(venda.getValorFinal()) >= 0)
+                throw new ApiException("O segundo pagamento deve ser maior que zero e menor que o total da venda.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
+        } else if (dto.getValorPagamento2() != null && dto.getValorPagamento2().signum() != 0) {
+            throw new ApiException("Informe a segunda forma de pagamento para o valor dividido.", HttpStatus.BAD_REQUEST, "/api/v1/vendas/registrar");
+        }
+
         // Troco para pagamento em dinheiro
         if (dto.getValorRecebido() != null && dto.getValorRecebido().compareTo(BigDecimal.ZERO) > 0) {
             venda.setValorRecebido(dto.getValorRecebido());

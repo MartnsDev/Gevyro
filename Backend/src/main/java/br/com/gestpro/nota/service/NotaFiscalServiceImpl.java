@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -128,6 +129,20 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 .valorDesconto(venda.getDesconto()).informacoesAdicionais("Documento fiscal vinculado à venda " + vendaId)
                 .itens(itensFiscais).build();
         NotaFiscal nota = criar(request);
+        BigDecimal segundo = venda.getValorPagamento2();
+        if (venda.getFormaPagamento2() != null) {
+            if (segundo == null || segundo.signum() <= 0 || segundo.compareTo(venda.getValorFinal()) >= 0)
+                throw new ApiException("A divisão dos pagamentos da venda é inválida para emissão fiscal.",
+                        HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/vendas");
+            nota.setFormaPagamento2(mapearPagamento(venda.getFormaPagamento2()));
+            nota.setValorPagamento2(segundo);
+            nota.setValorPagamento1(venda.getValorFinal().subtract(segundo));
+        } else {
+            if (segundo != null && segundo.signum() != 0)
+                throw new ApiException("Valor de segundo pagamento sem forma correspondente.",
+                        HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/vendas");
+            nota.setValorPagamento1(venda.getValorFinal());
+        }
         nota.setVendaId(vendaId);
         nota.setCaixaId(venda.getCaixa().getId());
         notaFiscalRepository.save(nota);

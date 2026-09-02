@@ -307,12 +307,23 @@ public class XmlGeneratorService {
 
     /** Bloco <pag> — forma de pagamento. */
     private void appendPagamento(StringBuilder xml, NotaFiscal nota) {
+        BigDecimal total = nota.getValorTotal() != null ? nota.getValorTotal() : BigDecimal.ZERO;
+        BigDecimal primeiro = nota.getValorPagamento1() != null ? nota.getValorPagamento1() : total;
+        BigDecimal segundo = nota.getValorPagamento2();
+        if (primeiro == null || primeiro.signum() < 0 || (segundo != null && segundo.signum() <= 0)
+                || (nota.getFormaPagamento2() == null) != (segundo == null)
+                || primeiro.add(segundo == null ? BigDecimal.ZERO : segundo).compareTo(total) != 0)
+            throw new IllegalArgumentException("Pagamentos fiscais não correspondem ao total da nota.");
         xml.append("<pag>");
         xml.append("<detPag>");
         xml.append("<tPag>").append(nota.getFormaPagamento() != null
                 ? nota.getFormaPagamento().getCodigo() : "01").append("</tPag>");
-        xml.append("<vPag>").append(fmt(nota.getValorTotal(), 2)).append("</vPag>");
+        xml.append("<vPag>").append(fmt(primeiro, 2)).append("</vPag>");
         xml.append("</detPag>");
+        if (nota.getFormaPagamento2() != null) {
+            xml.append("<detPag><tPag>").append(nota.getFormaPagamento2().getCodigo()).append("</tPag>")
+                    .append("<vPag>").append(fmt(segundo, 2)).append("</vPag></detPag>");
+        }
         xml.append("</pag>");
     }
 

@@ -75,6 +75,16 @@ public class NotaFiscal {
     @Column(name = "forma_pagamento", length = 30)
     private FormaPagamento formaPagamento;
 
+    @Column(name = "valor_pagamento1", precision = 15, scale = 2)
+    private BigDecimal valorPagamento1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento2", length = 30)
+    private FormaPagamento formaPagamento2;
+
+    @Column(name = "valor_pagamento2", precision = 15, scale = 2)
+    private BigDecimal valorPagamento2;
+
 
     @Column(name = "valor_produtos", precision = 15, scale = 2)
     private BigDecimal valorProdutos;
