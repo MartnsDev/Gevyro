@@ -25,11 +25,13 @@ public class FiscalXsdValidationService {
     private static final String BASE = "/fiscal/nfe/PL_010f_v1.04/";
     private static final String BASE_INUTILIZACAO = "/fiscal/nfe/inutilizacao_v4.00/";
     private static final String BASE_CCE = "/fiscal/nfe/cce_v1.00/";
+    private static final String BASE_NFSE = "/fiscal/nfse/v1.01/";
     private static final String ENTRYPOINT = "nfe_v4.00.xsd";
 
     private Schema schemaNfe;
     private Schema schemaInutilizacao;
     private Schema schemaCce;
+    private Schema schemaDpsNacional;
 
     @PostConstruct
     void carregarSchema() {
@@ -37,6 +39,7 @@ public class FiscalXsdValidationService {
             schemaNfe = compilarSchema(BASE, ENTRYPOINT);
             schemaInutilizacao = compilarSchema(BASE_INUTILIZACAO, "inutNFe_v4.00.xsd");
             schemaCce = compilarSchema(BASE_CCE, "envCCe_v1.00.xsd");
+            schemaDpsNacional = compilarSchema(BASE_NFSE, "DPS_v1.01.xsd");
         } catch (Exception erro) {
             throw new IllegalStateException("Pacote XSD fiscal oficial indisponível ou inválido: "
                     + FiscalSpecificationVersion.NFE_SCHEMA_PACKAGE, erro);
@@ -67,6 +70,10 @@ public class FiscalXsdValidationService {
         validar(xml, schemaCce, "Evento_CCe_PL_v1.01");
     }
 
+    public void validarDpsNacional(String xml) {
+        validar(xml, schemaDpsNacional, FiscalSpecificationVersion.NFSE_XSD);
+    }
+
     private void validar(String xml, Schema schema, String versao) {
         if (xml == null || xml.isBlank()) {
             throw xmlInvalido("XML fiscal vazio");
@@ -91,7 +98,9 @@ public class FiscalXsdValidationService {
 
     private String formatarLocal(SAXException erro) {
         if (erro instanceof org.xml.sax.SAXParseException parse) {
-            return " (linha " + parse.getLineNumber() + ", coluna " + parse.getColumnNumber() + ")";
+            String detalhe = parse.getMessage() == null ? "" : parse.getMessage().replaceAll("[\\r\\n]", " ");
+            if (detalhe.length() > 240) detalhe = detalhe.substring(0, 240);
+            return " (linha " + parse.getLineNumber() + ", coluna " + parse.getColumnNumber() + "): " + detalhe;
         }
         return "";
     }
