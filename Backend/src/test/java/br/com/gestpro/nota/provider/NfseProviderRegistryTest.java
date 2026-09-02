@@ -6,10 +6,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 class NfseProviderRegistryTest {
     @Test void priorizaPadraoNacionalParaMunicipioValido() {
-        NationalNfseProvider nacional = new NationalNfseProvider();
+        NationalNfseProvider nacional = provider();
         NfseProviderRegistry registry = new NfseProviderRegistry(List.of(nacional));
 
         assertThat(registry.paraMunicipio("3550308")).isSameAs(nacional);
@@ -19,7 +20,7 @@ class NfseProviderRegistryTest {
     }
 
     @Test void centralizaEndpointsOficiaisPorAmbiente() {
-        NationalNfseProvider provider = new NationalNfseProvider();
+        NationalNfseProvider provider = provider();
         assertThat(provider.endpoint(true).toString()).isEqualTo(
                 "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional");
         assertThat(provider.endpoint(false).toString()).isEqualTo(
@@ -27,13 +28,32 @@ class NfseProviderRegistryTest {
     }
 
     @Test void falhaFechadoParaCodigoMunicipalInvalido() {
-        NfseProviderRegistry registry = new NfseProviderRegistry(List.of(new NationalNfseProvider()));
+        NfseProviderRegistry registry = new NfseProviderRegistry(List.of(provider()));
         assertThatThrownBy(() -> registry.paraMunicipio("123"))
                 .isInstanceOf(RuntimeException.class).hasMessageContaining("IBGE");
     }
 
-    @Test void naoSimulaEmissaoAntesDoDpsOficial() {
-        assertThatThrownBy(() -> new NationalNfseProvider().emitir(null))
-                .isInstanceOf(RuntimeException.class).hasMessageContaining("DPS v1.01");
+    @Test void rejeitaComandoDeEmissaoIncompleto() {
+        assertThatThrownBy(() -> provider().emitir(null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("inválido");
+    }
+
+    @Test void converteRespostaHttpAutorizadaSemAlterarXmlOriginal() {
+        NfseNationalHttpClient http = mock(NfseNationalHttpClient.class);
+        when(http.emitir(any(), eq(true), eq("<DPS/>"), any(), eq("senha"))).thenReturn(
+                new NfseNationalHttpClient.Resposta(201, "NFS123", "<NFSe/>", null, null));
+        NationalNfseProvider provider = new NationalNfseProvider(http);
+
+        NfseProvider.EmissaoResultado resultado = provider.emitir(new NfseProvider.EmissaoComando(
+                "<DPS/>", "3550308", true, new byte[]{1}, "senha"));
+
+        assertThat(resultado.emitida()).isTrue();
+        assertThat(resultado.chaveAcesso()).isEqualTo("NFS123");
+        assertThat(resultado.nfseXml()).isEqualTo("<NFSe/>");
+        assertThat(resultado.codigo()).isEqualTo("201");
+    }
+
+    private NationalNfseProvider provider() {
+        return new NationalNfseProvider(mock(NfseNationalHttpClient.class));
     }
 }
