@@ -20,11 +20,13 @@ public class FiscalEmissionQueueService {
     private final FiscalAuditService auditService;
     private final DistributedRateLimitService rateLimit;
     private final FiscalMetricsService metrics;
+    private final FiscalFeatureService features;
 
     @Transactional
     public NotaFiscal enfileirar(Long notaId, String key, String ator, String ip) {
         NotaFiscal nota = notaRepository.findByIdForUpdate(notaId)
                 .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/emitir"));
+        features.validarEmissaoHabilitada(nota.getEmpresaId(), nota.getTipo());
         rateLimit.verificar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, nota.getEmpresaId(), ator, ip,
                 "/api/nota-fiscal/emitir");
         FiscalIdempotencyService.Resultado op = idempotencyService.iniciarEmissao(nota.getEmpresaId(), notaId, key);

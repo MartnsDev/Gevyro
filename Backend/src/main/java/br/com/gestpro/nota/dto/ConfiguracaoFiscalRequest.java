@@ -14,5 +14,10 @@ public record ConfiguracaoFiscalRequest(
         @NotBlank @Pattern(regexp = "[0-9]{1,3}") String serieNfe,
         @NotBlank @Pattern(regexp = "[0-9]{1,3}") String serieNfce,
         @Size(max = 20) String cscId,
-        @Size(max = 200) String csc
+        @Size(max = 200) String csc,
+        boolean fiscalHabilitado,
+        boolean nfeHabilitada,
+        boolean nfceHabilitada,
+        boolean nfseHabilitada,
+        boolean confirmarProducao
 ) {}

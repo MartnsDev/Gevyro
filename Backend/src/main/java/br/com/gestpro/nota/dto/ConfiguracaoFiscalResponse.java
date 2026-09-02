@@ -7,5 +7,6 @@ import java.time.Instant;
 public record ConfiguracaoFiscalResponse(
         Long empresaId, String inscricaoEstadual, RegimeTributario regimeTributario,
         ConfiguracaoFiscalEmpresa.Ambiente ambiente, String serieNfe, String serieNfce,
-        String cscId, boolean cscConfigurado, Instant atualizadoEm
+        String cscId, boolean cscConfigurado, boolean fiscalHabilitado,
+        boolean nfeHabilitada, boolean nfceHabilitada, boolean nfseHabilitada, Instant atualizadoEm
 ) {}

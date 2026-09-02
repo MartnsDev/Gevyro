@@ -22,6 +22,7 @@ class FiscalEmissionQueueServiceTest {
     private DistributedRateLimitService rateLimit;
     private FiscalEmissionQueueService service;
     private FiscalMetricsService metrics;
+    private FiscalFeatureService features;
     private NotaFiscal nota;
 
     @BeforeEach
@@ -32,7 +33,8 @@ class FiscalEmissionQueueServiceTest {
         audit = mock(FiscalAuditService.class);
         rateLimit = mock(DistributedRateLimitService.class);
         metrics = mock(FiscalMetricsService.class);
-        service = new FiscalEmissionQueueService(notas, jobs, idempotency, audit, rateLimit, metrics);
+        features = mock(FiscalFeatureService.class);
+        service = new FiscalEmissionQueueService(notas, jobs, idempotency, audit, rateLimit, metrics, features);
         nota = NotaFiscal.builder().id(7L).empresaId(3L).status(NotaFiscalStatus.DIGITACAO).build();
         when(notas.findByIdForUpdate(7L)).thenReturn(Optional.of(nota));
     }

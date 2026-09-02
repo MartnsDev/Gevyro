@@ -64,6 +64,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final FiscalEncryptionService fiscalEncryptionService;
     private final VendaRepository vendaRepository;
     private final ProdutoFiscalService produtoFiscalService;
+    private final FiscalFeatureService fiscalFeatureService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -245,6 +246,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         // 1. Busca a nota e valida o status
         NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(notaId)
                 .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/emitir"));
+        fiscalFeatureService.validarEmissaoHabilitada(nota.getEmpresaId(), nota.getTipo());
 
         if (nota.getStatus() == NotaFiscalStatus.AUTORIZADA) {
             throw new ApiException(

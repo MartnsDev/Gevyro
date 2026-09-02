@@ -26,7 +26,8 @@ public class ConfiguracaoFiscalService {
         validarAcesso(empresaId, ator);
         return repository.findByEmpresaId(empresaId).map(this::toResponse)
                 .orElse(new ConfiguracaoFiscalResponse(empresaId, null, null,
-                        ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO, "1", "1", null, false, null));
+                        ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO, "1", "1", null, false,
+                        false, false, false, false, null));
     }
 
     @Transactional
@@ -34,6 +35,12 @@ public class ConfiguracaoFiscalService {
         validarAcesso(empresaId, ator);
         ConfiguracaoFiscalEmpresa config = repository.findByEmpresaId(empresaId)
                 .orElseGet(() -> new ConfiguracaoFiscalEmpresa(empresaId));
+        validarFlags(request);
+        boolean entrandoEmProducao = request.ambiente() == ConfiguracaoFiscalEmpresa.Ambiente.PRODUCAO
+                && config.getAmbiente() != ConfiguracaoFiscalEmpresa.Ambiente.PRODUCAO;
+        if (entrandoEmProducao && !request.confirmarProducao())
+            throw new ApiException("A mudança para produção exige confirmação explícita.", HttpStatus.PRECONDITION_REQUIRED,
+                    "/api/fiscal/configuracao");
         boolean substituirCsc = request.csc() != null;
         byte[] plain = substituirCsc ? request.csc().getBytes(StandardCharsets.UTF_8) : null;
         try {
@@ -42,10 +49,11 @@ public class ConfiguracaoFiscalService {
             config.atualizar(normalizar(request.inscricaoEstadual()), request.regimeTributario(), request.ambiente(),
                     request.serieNfe(), request.serieNfce(), normalizar(request.cscId()),
                     encrypted == null ? null : encrypted.cipherText(), encrypted == null ? null : encrypted.nonce(),
-                    substituirCsc);
+                    substituirCsc, request.fiscalHabilitado(), request.nfeHabilitada(),
+                    request.nfceHabilitada(), request.nfseHabilitada());
             ConfiguracaoFiscalResponse response = toResponse(repository.save(config));
             auditService.registrar(empresaId, null, "CONFIGURACAO_FISCAL_ALTERADA", ator, "SUCESSO",
-                    "ambiente=" + request.ambiente());
+                    "ambiente=" + request.ambiente() + ";fiscalHabilitado=" + request.fiscalHabilitado());
             return response;
         } finally {
             if (plain != null) Arrays.fill(plain, (byte) 0);
@@ -60,7 +68,17 @@ public class ConfiguracaoFiscalService {
     }
     private ConfiguracaoFiscalResponse toResponse(ConfiguracaoFiscalEmpresa c) {
         return new ConfiguracaoFiscalResponse(c.getEmpresaId(), c.getInscricaoEstadual(), c.getRegimeTributario(),
-                c.getAmbiente(), c.getSerieNfe(), c.getSerieNfce(), c.getCscId(), c.getCscCifrado() != null, c.getAtualizadoEm());
+                c.getAmbiente(), c.getSerieNfe(), c.getSerieNfce(), c.getCscId(), c.getCscCifrado() != null,
+                c.isFiscalHabilitado(), c.isNfeHabilitada(), c.isNfceHabilitada(), c.isNfseHabilitada(), c.getAtualizadoEm());
+    }
+    private void validarFlags(ConfiguracaoFiscalRequest request) {
+        if (!request.fiscalHabilitado()
+                && (request.nfeHabilitada() || request.nfceHabilitada() || request.nfseHabilitada()))
+            throw new ApiException("Habilite o módulo fiscal antes de habilitar um documento.",
+                    HttpStatus.UNPROCESSABLE_ENTITY, "/api/fiscal/configuracao");
+        if (request.ambiente() == ConfiguracaoFiscalEmpresa.Ambiente.PRODUCAO && request.nfseHabilitada())
+            throw new ApiException("A emissão de NFS-e em produção ainda não foi liberada.",
+                    HttpStatus.UNPROCESSABLE_ENTITY, "/api/fiscal/configuracao");
     }
     private String normalizar(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

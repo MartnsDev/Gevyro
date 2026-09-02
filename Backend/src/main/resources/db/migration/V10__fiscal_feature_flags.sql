@@ -1,0 +1,5 @@
+ALTER TABLE configuracoes_fiscais
+    ADD COLUMN fiscal_habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN nfe_habilitada BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN nfce_habilitada BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN nfse_habilitada BOOLEAN NOT NULL DEFAULT FALSE;
