@@ -67,7 +67,17 @@ public class Criar {
                 .valorDesconto(coalesce(request.getValorDesconto(), BigDecimal.ZERO))
                 .informacoesAdicionais(request.getInformacoesAdicionais())
                 .status(NotaFiscalStatus.DIGITACAO)
+                .nfseCompetencia(request.getNfseCompetencia())
+                .nfseCodigoMunicipioPrestacao(request.getNfseCodigoMunicipioPrestacao())
+                .nfseCodigoTributacaoNacional(request.getNfseCodigoTributacaoNacional())
+                .nfseOpcaoSimples(request.getNfseOpcaoSimples())
+                .nfseRegimeEspecial(request.getNfseRegimeEspecial())
+                .nfseTributacaoIssqn(request.getNfseTributacaoIssqn())
+                .nfseRetencaoIssqn(request.getNfseRetencaoIssqn())
+                .nfseAliquotaIssqn(request.getNfseAliquotaIssqn())
                 .build();
+
+        if (request.getTipo() == br.com.gestpro.nota.TipoNota.NFSE) validarNfse(request);
 
         // 2. Número sequencial por empresa/tipo/série
         Long proxNumero = fiscalSequenceService.reservar(
@@ -82,7 +92,7 @@ public class Criar {
         int numItem = 1;
 
         for (ItemCalc ic : request.getItens()) {
-            validarItem(ic,numItem);
+            validarItem(ic,numItem, request.getTipo() == br.com.gestpro.nota.TipoNota.NFSE);
             ItemNotaFiscal item = ItemNotaFiscal.builder()
                     .produtoId(ic.getProdutoId())
                     .codigoProduto(ic.getCodigoProduto())
@@ -159,16 +169,35 @@ public class Criar {
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
-    private void validarItem(ItemCalc item,int numero){
+    private void validarItem(ItemCalc item,int numero,boolean servico){
         if(item==null||item.getDescricao()==null||item.getDescricao().isBlank())throw new ApiException("Descrição obrigatória no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
         String ncm=item.getNcm()==null?"":item.getNcm().replaceAll("\\D","");
         String cfop=item.getCfop()==null?"":item.getCfop().replaceAll("\\D","");
-        if(ncm.length()!=8)throw new ApiException("NCM deve conter 8 dígitos no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
-        if(cfop.length()!=4)throw new ApiException("CFOP deve conter 4 dígitos no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
+        if(!servico&&ncm.length()!=8)throw new ApiException("NCM deve conter 8 dígitos no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
+        if(!servico&&cfop.length()!=4)throw new ApiException("CFOP deve conter 4 dígitos no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
         if(item.getQuantidade()==null||item.getQuantidade().signum()<=0)throw new ApiException("Quantidade deve ser maior que zero no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
         if(item.getValorUnitario()==null||item.getValorUnitario().signum()<0)throw new ApiException("Valor unitário inválido no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
         if(item.getValorDesconto()!=null&&(item.getValorDesconto().signum()<0||item.getValorDesconto().compareTo(item.getValorBruto())>0))throw new ApiException("Desconto inválido no item "+numero+".",HttpStatus.BAD_REQUEST,"/api/nota-fiscal");
         item.setNcm(ncm);item.setCfop(cfop);
+    }
+
+    private void validarNfse(CriarNotaRequest r) {
+        if (r.getItens().size() != 1) throw new ApiException("A DPS Nacional aceita inicialmente um serviço por nota.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal");
+        if (r.getNfseCompetencia() == null || r.getNfseCodigoMunicipioPrestacao() == null
+                || !r.getNfseCodigoMunicipioPrestacao().matches("[0-9]{7}")
+                || r.getNfseCodigoTributacaoNacional() == null || !r.getNfseCodigoTributacaoNacional().matches("[0-9]{6}"))
+            throw new ApiException("Competência, município e código de tributação nacional são obrigatórios para NFS-e.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal");
+        if (r.getNfseOpcaoSimples() == null || r.getNfseRegimeEspecial() == null
+                || r.getNfseTributacaoIssqn() == null || r.getNfseRetencaoIssqn() == null)
+            throw new ApiException("O tratamento tributário da NFS-e deve ser confirmado.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal");
+        if (r.getNfseOpcaoSimples() < 1 || r.getNfseOpcaoSimples() > 3
+                || r.getNfseRegimeEspecial() < 0
+                || (r.getNfseRegimeEspecial() > 6 && r.getNfseRegimeEspecial() != 9)
+                || r.getNfseTributacaoIssqn() < 1 || r.getNfseTributacaoIssqn() > 4
+                || r.getNfseRetencaoIssqn() < 1 || r.getNfseRetencaoIssqn() > 3
+                || (r.getNfseAliquotaIssqn() != null && (r.getNfseAliquotaIssqn().signum() < 0
+                || r.getNfseAliquotaIssqn().compareTo(new BigDecimal("9.99")) > 0)))
+            throw new ApiException("Valores de regime ou ISSQN fora do domínio oficial da DPS.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal");
     }
 
     private BigDecimal coalesce(BigDecimal val, BigDecimal fallback) {

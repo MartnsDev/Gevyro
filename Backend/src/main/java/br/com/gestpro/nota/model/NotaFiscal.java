@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,8 +65,17 @@ public class NotaFiscal {
     @Column(name = "serie", length = 3)
     private String serie;
 
-    @Column(name = "chave_acesso", length = 44, unique = true)
+    @Column(name = "chave_acesso", length = 50, unique = true)
     private String chaveAcesso;
+
+    @Column(name = "nfse_competencia") private LocalDate nfseCompetencia;
+    @Column(name = "nfse_codigo_municipio_prestacao", length = 7) private String nfseCodigoMunicipioPrestacao;
+    @Column(name = "nfse_codigo_tributacao_nacional", length = 6) private String nfseCodigoTributacaoNacional;
+    @Column(name = "nfse_opcao_simples") private Integer nfseOpcaoSimples;
+    @Column(name = "nfse_regime_especial") private Integer nfseRegimeEspecial;
+    @Column(name = "nfse_tributacao_issqn") private Integer nfseTributacaoIssqn;
+    @Column(name = "nfse_retencao_issqn") private Integer nfseRetencaoIssqn;
+    @Column(name = "nfse_aliquota_issqn", precision = 5, scale = 2) private BigDecimal nfseAliquotaIssqn;
 
 
     @Column(name = "natureza_operacao", length = 100, nullable = false)

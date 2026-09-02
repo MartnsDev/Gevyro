@@ -41,7 +41,11 @@ public class FiscalXmlService {
     }
 
     public void armazenarAutorizado(Long empresaId, Long documentoId, String nfeProc) {
-        byte[] plain = nfeProc.getBytes(StandardCharsets.UTF_8);
+        armazenarAutorizado(empresaId, documentoId, nfeProc, FiscalSpecificationVersion.NFE_LAYOUT, "SEFAZ_DIRETO");
+    }
+
+    public void armazenarAutorizado(Long empresaId, Long documentoId, String xml, String versao, String provedor) {
+        byte[] plain = xml.getBytes(StandardCharsets.UTF_8);
         try {
             String hash = hex(sha256(plain));
             XmlFiscal existente = repository.findByDocumentoIdAndTipo(documentoId, XmlFiscal.Tipo.AUTORIZADO).orElse(null);
@@ -53,7 +57,7 @@ public class FiscalXmlService {
             }
             var encrypted = encryption.encrypt(plain);
             repository.save(new XmlFiscal(empresaId, documentoId, XmlFiscal.Tipo.AUTORIZADO,
-                    encrypted.cipherText(), encrypted.nonce(), hash, FiscalSpecificationVersion.NFE_LAYOUT, "SEFAZ_DIRETO"));
+                    encrypted.cipherText(), encrypted.nonce(), hash, versao, provedor));
         } finally { Arrays.fill(plain, (byte) 0); }
     }
 

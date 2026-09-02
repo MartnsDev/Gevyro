@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -29,4 +30,12 @@ public class CriarNotaRequest {
     private String informacoesAdicionais;
     private List<ItemCalc> itens;
     private Boolean emitirImediatamente;
+    private LocalDate nfseCompetencia;
+    private String nfseCodigoMunicipioPrestacao;
+    private String nfseCodigoTributacaoNacional;
+    private Integer nfseOpcaoSimples;
+    private Integer nfseRegimeEspecial;
+    private Integer nfseTributacaoIssqn;
+    private Integer nfseRetencaoIssqn;
+    private BigDecimal nfseAliquotaIssqn;
 }

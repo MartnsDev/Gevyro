@@ -32,6 +32,7 @@ public class FiscalXsdValidationService {
     private Schema schemaInutilizacao;
     private Schema schemaCce;
     private Schema schemaDpsNacional;
+    private Schema schemaNfseNacional;
 
     @PostConstruct
     void carregarSchema() {
@@ -40,6 +41,7 @@ public class FiscalXsdValidationService {
             schemaInutilizacao = compilarSchema(BASE_INUTILIZACAO, "inutNFe_v4.00.xsd");
             schemaCce = compilarSchema(BASE_CCE, "envCCe_v1.00.xsd");
             schemaDpsNacional = compilarSchema(BASE_NFSE, "DPS_v1.01.xsd");
+            schemaNfseNacional = compilarSchema(BASE_NFSE, "NFSe_v1.01.xsd");
         } catch (Exception erro) {
             throw new IllegalStateException("Pacote XSD fiscal oficial indisponível ou inválido: "
                     + FiscalSpecificationVersion.NFE_SCHEMA_PACKAGE, erro);
@@ -72,6 +74,10 @@ public class FiscalXsdValidationService {
 
     public void validarDpsNacional(String xml) {
         validar(xml, schemaDpsNacional, FiscalSpecificationVersion.NFSE_XSD);
+    }
+
+    public void validarNfseNacional(String xml) {
+        validar(xml, schemaNfseNacional, FiscalSpecificationVersion.NFSE_XSD);
     }
 
     private void validar(String xml, Schema schema, String versao) {
