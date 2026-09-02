@@ -48,6 +48,10 @@ type ConfiguracaoFiscal = {
   serieNfe: string; serieNfce: string; cscId: string; cscConfigurado: boolean;
   fiscalHabilitado: boolean; nfeHabilitada: boolean; nfceHabilitada: boolean; nfseHabilitada: boolean;
 };
+type ProntidaoFiscal = {
+  percentual: number; requisitos: { codigo: string; descricao: string; concluido: boolean }[];
+  nfePronta: boolean; nfcePronta: boolean; nfsePronta: boolean; alertas: string[];
+};
 type ItemRascunho = {
   id: number; descricao: string; ncm: string; cfop: string; unidade: string;
   quantidade: number; valorUnitario: number; valorDesconto: number; csosn: string;
@@ -170,6 +174,7 @@ export default function NotaFiscalPage() {
   const [cscNovo, setCscNovo] = useState("");
   const [confirmarProducao, setConfirmarProducao] = useState(false);
   const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [prontidaoFiscal, setProntidaoFiscal] = useState<ProntidaoFiscal | null>(null);
 
   // API SEGURA
   const fetchSeguro = async (url: string, options: RequestInit = {}) => {
@@ -267,10 +272,20 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); }
   }, [EMPRESA_ID]);
 
+  const carregarProntidao = useCallback(async () => {
+    if (!EMPRESA_ID) return;
+    try {
+      const res = await fetchAuth(`/api/fiscal/configuracao/${EMPRESA_ID}/prontidao`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.mensagem || "Não foi possível avaliar a prontidão fiscal.");
+      setProntidaoFiscal(json?.dados ?? null);
+    } catch (e: any) { setErroApi(e.message); }
+  }, [EMPRESA_ID]);
+
   useEffect(() => {
-    setConfigFiscal(null); setCscNovo(""); setConfirmarProducao(false);
-    if (EMPRESA_ID) carregarConfiguracao();
-  }, [EMPRESA_ID, carregarConfiguracao]);
+    setConfigFiscal(null); setProntidaoFiscal(null); setCscNovo(""); setConfirmarProducao(false);
+    if (EMPRESA_ID) { carregarConfiguracao(); carregarProntidao(); }
+  }, [EMPRESA_ID, carregarConfiguracao, carregarProntidao]);
 
   useEffect(() => {
     setRascunhoPronto(false);
@@ -352,7 +367,7 @@ export default function NotaFiscalPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.mensagem || "Não foi possível salvar a configuração fiscal.");
       setCscNovo(""); setConfirmarProducao(false);
-      await carregarConfiguracao();
+      await Promise.all([carregarConfiguracao(), carregarProntidao()]);
       toast.success("Configuração fiscal salva com segurança.");
     } catch (e: any) { setErroApi(e.message); }
     finally { setSalvandoConfig(false); }
@@ -547,6 +562,7 @@ export default function NotaFiscalPage() {
       if (json?.sucesso) { 
         toast.success("Certificado ativado e validado com sucesso!"); 
         setCertInfo(json.dados); 
+        await carregarProntidao();
       } 
     } catch (e: any) { setErroApi(e.message); } finally { setSalvandoCert(false); }
   };
@@ -854,6 +870,22 @@ export default function NotaFiscalPage() {
         {aba === "configuracao" && (
           !configFiscal ? <Card><div style={{ display: "flex", alignItems: "center", gap: 10, color: theme.textMuted }}><Loader2 size={18} className="animate-spin"/> Carregando configuração fiscal...</div></Card> :
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {prontidaoFiscal && <Card title="Assistente de prontidão fiscal" subtitle="Checklist cadastral calculado pelo servidor para esta empresa.">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 14 }}>
+                <div style={{ flex: 1, height: 8, borderRadius: 99, background: theme.bgInput, overflow: "hidden" }}><div style={{ width: `${prontidaoFiscal.percentual}%`, height: "100%", background: prontidaoFiscal.percentual === 100 ? theme.primary : theme.warning }}/></div>
+                <strong style={{ minWidth: 42, textAlign: "right" }}>{prontidaoFiscal.percentual}%</strong>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+                {prontidaoFiscal.requisitos.map(item => <div key={item.codigo} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, color: item.concluido ? theme.textMain : theme.textMuted }}>
+                  {item.concluido ? <CheckCircle size={15} color={theme.primary}/> : <XCircle size={15} color={theme.danger}/>} {item.descricao}
+                </div>)}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+                {[{ nome: "NF-e", pronta: prontidaoFiscal.nfePronta }, { nome: "NFC-e", pronta: prontidaoFiscal.nfcePronta }, { nome: "NFS-e", pronta: prontidaoFiscal.nfsePronta }].map(doc =>
+                  <span key={doc.nome} style={{ padding: "6px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: doc.pronta ? theme.primary : theme.textMuted, background: doc.pronta ? theme.primaryAlpha : theme.bgInput }}>{doc.nome}: {doc.pronta ? "pronta" : "indisponível"}</span>)}
+              </div>
+              {prontidaoFiscal.alertas.map(alerta => <p key={alerta} style={{ margin: "10px 0 0", color: theme.warning, fontSize: 11, lineHeight: 1.5 }}>• {alerta}</p>)}
+            </Card>}
             <Card title="Rollout por empresa" subtitle="Nenhuma emissão é liberada apenas por aparecer na interface.">
               <label style={{ display: "flex", gap: 12, alignItems: "center", padding: 14, border: `1px solid ${theme.border}`, borderRadius: 10, cursor: "pointer" }}>
                 <input type="checkbox" checked={configFiscal.fiscalHabilitado} onChange={e => setConfigFiscal({ ...configFiscal,

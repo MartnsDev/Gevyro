@@ -19,6 +19,11 @@ public class ConfiguracaoFiscalController {
         return ResponseEntity.ok(ApiResponse.ok(service.buscar(empresaId, auth.getName())));
     }
 
+    @GetMapping("/{empresaId}/prontidao")
+    public ResponseEntity<ApiResponse<ProntidaoFiscalResponse>> prontidao(@PathVariable Long empresaId, Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(service.prontidao(empresaId, auth.getName())));
+    }
+
     @PutMapping("/{empresaId}")
     public ResponseEntity<ApiResponse<ConfiguracaoFiscalResponse>> salvar(@PathVariable Long empresaId,
             @Valid @RequestBody ConfiguracaoFiscalRequest request, Authentication auth) {

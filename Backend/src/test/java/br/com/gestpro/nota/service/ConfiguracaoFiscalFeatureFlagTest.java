@@ -8,6 +8,7 @@ import br.com.gestpro.nota.RegimeTributario;
 import br.com.gestpro.nota.dto.ConfiguracaoFiscalRequest;
 import br.com.gestpro.nota.model.ConfiguracaoFiscalEmpresa;
 import br.com.gestpro.nota.repository.ConfiguracaoFiscalEmpresaRepository;
+import br.com.gestpro.nota.repository.CertificadoDigitalRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +28,7 @@ class ConfiguracaoFiscalFeatureFlagTest {
         ConfiguracaoFiscalEmpresaRepository configs = mock(ConfiguracaoFiscalEmpresaRepository.class);
         when(configs.findByEmpresaId(3L)).thenReturn(Optional.empty());
         service = new ConfiguracaoFiscalService(configs, empresas, mock(FiscalEncryptionService.class),
-                mock(FiscalAuditService.class));
+                mock(FiscalAuditService.class), mock(CertificadoDigitalRepository.class));
     }
 
     @Test void exigeConfirmacaoParaEntrarEmProducao() {
