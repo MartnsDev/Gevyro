@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Gera o DANFE retrato a partir do XML autorizado, que permanece a fonte de verdade. */
+/** Gera DANFE NF-e (A4) e DANFE NFC-e (térmico) a partir do XML autorizado. */
 @Service
 @RequiredArgsConstructor
 public class DanfePdfService {
@@ -36,8 +36,8 @@ public class DanfePdfService {
     public byte[] gerar(Long notaId) {
         NotaFiscal nota = notaRepository.findById(notaId).orElseThrow(() -> new ApiException(
                 "Nota fiscal não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/danfe"));
-        if (nota.getTipo() != TipoNota.NFE) throw new ApiException(
-                "Este gerador atende somente DANFE da NF-e modelo 55.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/danfe");
+        if (nota.getTipo() != TipoNota.NFE && nota.getTipo() != TipoNota.NFCE) throw new ApiException(
+                "DANFE disponível somente para NF-e e NFC-e.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/danfe");
         if (nota.getStatus() != NotaFiscalStatus.AUTORIZADA && nota.getStatus() != NotaFiscalStatus.CANCELADA)
             throw new ApiException("O DANFE exige XML autorizado.", HttpStatus.CONFLICT, "/api/nota-fiscal/danfe");
 
@@ -50,6 +50,13 @@ public class DanfePdfService {
         }
         if (!chave.matches("[0-9]{44}")) throw new ApiException(
                 "XML autorizado sem chave de acesso válida.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/danfe");
+
+        String modeloXml = texto(xml, "mod");
+        String modeloEsperado = nota.getTipo() == TipoNota.NFCE ? "65" : "55";
+        if (!modeloEsperado.equals(modeloXml)) throw new ApiException(
+                "O modelo do XML autorizado não corresponde ao documento.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/danfe");
+
+        if (nota.getTipo() == TipoNota.NFCE) return gerarNfce(xml, chave, nota.getStatus());
 
         try (PDDocument pdf = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             List<Element> itens = elementos(xml, "det");
@@ -76,6 +83,66 @@ public class DanfePdfService {
         } catch (Exception e) {
             throw new ApiException("Não foi possível gerar o DANFE a partir do XML autorizado.",
                     HttpStatus.INTERNAL_SERVER_ERROR, "/api/nota-fiscal/danfe");
+        }
+    }
+
+    private byte[] gerarNfce(Document xml, String chave, NotaFiscalStatus status) {
+        String qrCode = texto(xml, "qrCode").trim();
+        if (qrCode.length() > 2_000 || !(qrCode.startsWith("https://") || qrCode.startsWith("http://localhost"))) {
+            throw new ApiException("XML autorizado sem QR Code NFC-e seguro.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/danfe");
+        }
+        List<Element> itens = elementos(xml, "det");
+        float largura = 226.77f; // 80 mm
+        float altura = Math.max(520, 390 + itens.size() * 24);
+        try (PDDocument pdf = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(new PDRectangle(largura, altura));
+            pdf.addPage(page);
+            try (PDPageContentStream cs = new PDPageContentStream(pdf, page)) {
+                float y = altura - 18;
+                textoCentralizado(cs, limitar(texto(xml, "xNome"), 38), largura, y, 9, BOLD); y -= 13;
+                textoCentralizado(cs, "CNPJ: " + texto(xml, "CNPJ") + "  IE: " + texto(xml, "IE"), largura, y, 6, NORMAL); y -= 16;
+                linha(cs, 8, y, largura - 8); y -= 13;
+                textoCentralizado(cs, "DANFE NFC-e - Documento Auxiliar", largura, y, 8, BOLD); y -= 11;
+                textoCentralizado(cs, "da Nota Fiscal de Consumidor Eletronica", largura, y, 6, NORMAL); y -= 14;
+
+                texto(cs, "COD  DESCRICAO                 QTD x UNIT.      TOTAL", 10, y, 5.2f, BOLD); y -= 8;
+                linha(cs, 8, y, largura - 8); y -= 11;
+                for (Element det : itens) {
+                    Element prod = filhoElemento(det, "prod");
+                    texto(cs, limitar(filho(prod, "cProd") + "  " + filho(prod, "xProd"), 43), 10, y, 6, NORMAL); y -= 9;
+                    String valores = filho(prod, "qCom") + " " + filho(prod, "uCom") + " x " + filho(prod, "vUnCom");
+                    texto(cs, limitar(valores, 28), 18, y, 5.7f, NORMAL);
+                    textoDireita(cs, filho(prod, "vProd"), largura - 10, y, 6, NORMAL); y -= 11;
+                }
+                linha(cs, 8, y, largura - 8); y -= 12;
+                texto(cs, "Qtd. total de itens", 10, y, 6, NORMAL);
+                textoDireita(cs, String.valueOf(itens.size()), largura - 10, y, 6, BOLD); y -= 11;
+                texto(cs, "Valor total R$", 10, y, 7, BOLD);
+                textoDireita(cs, texto(xml, "vNF"), largura - 10, y, 8, BOLD); y -= 13;
+
+                texto(cs, "FORMA DE PAGAMENTO", 10, y, 5.5f, BOLD); y -= 9;
+                for (Element pag : elementos(xml, "detPag")) {
+                    texto(cs, descricaoPagamento(filho(pag, "tPag")), 10, y, 6, NORMAL);
+                    textoDireita(cs, filho(pag, "vPag"), largura - 10, y, 6, NORMAL); y -= 9;
+                }
+                y -= 3; linha(cs, 8, y, largura - 8); y -= 12;
+                Element dest = primeiro(xml, "dest");
+                String documento = primeiroNaoVazio(filho(dest, "CNPJ"), filho(dest, "CPF"));
+                textoCentralizado(cs, documento.isBlank() ? "CONSUMIDOR NAO IDENTIFICADO" : "CONSUMIDOR: " + documento,
+                        largura, y, 6, BOLD); y -= 11;
+                textoCentralizado(cs, "NFC-e n. " + texto(xml, "nNF") + " Serie " + texto(xml, "serie") + " " + texto(xml, "dhEmi"), largura, y, 5.5f, NORMAL); y -= 13;
+                textoCentralizado(cs, "Consulte pela chave de acesso", largura, y, 6, NORMAL); y -= 10;
+                textoCentralizado(cs, agruparChave(chave), largura, y, 6, BOLD); y -= 12;
+                textoCentralizado(cs, limitar(texto(xml, "urlChave"), 58), largura, y, 5, NORMAL); y -= 98;
+                qrCode(cs, qrCode, (largura - 88) / 2, y, 88);
+                y -= 12;
+                textoCentralizado(cs, "Protocolo: " + texto(xml, "nProt") + " " + texto(xml, "dhRecbto"), largura, y, 5.3f, NORMAL); y -= 13;
+                if (status == NotaFiscalStatus.CANCELADA) textoCentralizado(cs, "DOCUMENTO CANCELADO", largura, y, 11, BOLD);
+            }
+            pdf.save(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new ApiException("Não foi possível gerar o DANFE NFC-e.", HttpStatus.INTERNAL_SERVER_ERROR, "/api/nota-fiscal/danfe");
         }
     }
 
@@ -162,6 +229,43 @@ public class DanfePdfService {
         for (int ix = 0; ix < bits.getWidth(); ix++) for (int iy = 0; iy < bits.getHeight(); iy++) if (bits.get(ix, iy))
             cs.addRect(x + ix * bw, y + (bits.getHeight() - iy - 1) * bh, bw + .1f, bh + .1f);
         cs.fill();
+    }
+
+    private void qrCode(PDPageContentStream cs, String value, float x, float y, float tamanho) throws Exception {
+        BitMatrix bits = new MultiFormatWriter().encode(value, BarcodeFormat.QR_CODE, 180, 180);
+        float modulo = tamanho / bits.getWidth();
+        for (int ix = 0; ix < bits.getWidth(); ix++) for (int iy = 0; iy < bits.getHeight(); iy++) if (bits.get(ix, iy))
+            cs.addRect(x + ix * modulo, y + (bits.getHeight() - iy - 1) * modulo, modulo + .05f, modulo + .05f);
+        cs.fill();
+    }
+
+    private void linha(PDPageContentStream cs, float x1, float y, float x2) throws IOException {
+        cs.moveTo(x1, y); cs.lineTo(x2, y); cs.stroke();
+    }
+
+    private void textoCentralizado(PDPageContentStream cs, String value, float largura, float y,
+                                    float size, PDType1Font font) throws IOException {
+        String seguro = sanitizar(value);
+        float x = Math.max(5, (largura - font.getStringWidth(seguro) / 1000 * size) / 2);
+        texto(cs, seguro, x, y, size, font);
+    }
+
+    private void textoDireita(PDPageContentStream cs, String value, float direita, float y,
+                              float size, PDType1Font font) throws IOException {
+        String seguro = sanitizar(value);
+        texto(cs, seguro, Math.max(5, direita - font.getStringWidth(seguro) / 1000 * size), y, size, font);
+    }
+
+    private String descricaoPagamento(String codigo) {
+        return switch (codigo) {
+            case "01" -> "Dinheiro";
+            case "03" -> "Cartao de credito";
+            case "04" -> "Cartao de debito";
+            case "17" -> "PIX";
+            case "90" -> "Sem pagamento";
+            case "99" -> "Outros";
+            default -> "Pagamento " + limitar(codigo, 2);
+        };
     }
 
     private void caixa(PDPageContentStream cs, float x, float y, float w, float h) throws IOException { cs.addRect(x, y, w, h); cs.stroke(); }
