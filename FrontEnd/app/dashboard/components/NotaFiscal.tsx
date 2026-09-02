@@ -176,6 +176,8 @@ export default function NotaFiscalPage() {
   const [confirmarProducao, setConfirmarProducao] = useState(false);
   const [salvandoConfig, setSalvandoConfig] = useState(false);
   const [prontidaoFiscal, setProntidaoFiscal] = useState<ProntidaoFiscal | null>(null);
+  const [inutilizacao, setInutilizacao] = useState({ tipo: "NFE" as "NFE" | "NFCE", ano: new Date().getFullYear(), serie: "1", inicio: "", fim: "", justificativa: "", confirmacao: "" });
+  const [inutilizando, setInutilizando] = useState(false);
 
   // API SEGURA
   const fetchSeguro = async (url: string, options: RequestInit = {}) => {
@@ -263,13 +265,15 @@ export default function NotaFiscalPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.mensagem || "Não foi possível carregar a configuração fiscal.");
       const c = json?.dados;
-      setConfigFiscal({
+      const configuracao: ConfiguracaoFiscal = {
         inscricaoEstadual: c?.inscricaoEstadual ?? "", regimeTributario: c?.regimeTributario ?? "SIMPLES_NACIONAL",
         ambiente: c?.ambiente ?? "HOMOLOGACAO", serieNfe: c?.serieNfe ?? "1", serieNfce: c?.serieNfce ?? "1",
         cscId: c?.cscId ?? "", cscConfigurado: Boolean(c?.cscConfigurado),
         fiscalHabilitado: Boolean(c?.fiscalHabilitado), nfeHabilitada: Boolean(c?.nfeHabilitada),
         nfceHabilitada: Boolean(c?.nfceHabilitada), nfseHabilitada: Boolean(c?.nfseHabilitada)
-      });
+      };
+      setConfigFiscal(configuracao);
+      setInutilizacao(i => ({ ...i, serie: i.tipo === "NFE" ? configuracao.serieNfe : configuracao.serieNfce }));
     } catch (e: any) { setErroApi(e.message); }
   }, [EMPRESA_ID]);
 
@@ -612,6 +616,34 @@ export default function NotaFiscalPage() {
       await carregarProntidao();
       toast.success("Certificado excluído. Novas emissões permanecerão bloqueadas até configurar outro A1.");
     } catch (e: any) { setErroApi(e.message); }
+  };
+
+  const handleInutilizarNumeracao = async () => {
+    if (!EMPRESA_ID || !configFiscal) return;
+    if (!documentoHabilitado(inutilizacao.tipo)) { setErroApi("O modelo selecionado está desabilitado para esta empresa."); return; }
+    const inicio = Number(inutilizacao.inicio); const fim = Number(inutilizacao.fim);
+    if (!Number.isSafeInteger(inicio) || !Number.isSafeInteger(fim) || inicio < 1 || fim < inicio || fim > 999999999) {
+      setErroApi("Informe uma faixa numérica válida, em ordem crescente."); return;
+    }
+    if (!Number.isInteger(inutilizacao.ano) || inutilizacao.ano < 2006 || inutilizacao.ano > new Date().getFullYear()
+        || !/^[0-9]{1,3}$/.test(inutilizacao.serie)) {
+      setErroApi("Revise o ano fiscal e a série selecionada."); return;
+    }
+    if (inutilizacao.justificativa.trim().length < 15 || inutilizacao.justificativa.trim().length > 255) {
+      setErroApi("A justificativa deve conter entre 15 e 255 caracteres."); return;
+    }
+    const frase = `INUTILIZAR ${inicio}-${fim}`;
+    if (inutilizacao.confirmacao !== frase) { setErroApi(`Digite exatamente ${frase} para confirmar.`); return; }
+    setInutilizando(true);
+    try {
+      await fetchSeguro(`${API_BASE}/inutilizar`, { method: "POST", body: JSON.stringify({
+        empresaId: EMPRESA_ID, tipo: inutilizacao.tipo, serie: inutilizacao.serie,
+        ano: inutilizacao.ano, numeroInicio: inicio, numeroFim: fim, justificativa: inutilizacao.justificativa.trim()
+      }) });
+      toast.success(`Faixa ${inicio}-${fim} inutilizada e auditada.`);
+      setInutilizacao(i => ({ ...i, inicio: "", fim: "", justificativa: "", confirmacao: "" }));
+    } catch (e: any) { setErroApi(e.message); }
+    finally { setInutilizando(false); }
   };
 
   const totalNota = itens.reduce((acc, i) => acc + ((i.quantidade * i.valorUnitario) - i.valorDesconto), 0);
@@ -980,6 +1012,24 @@ export default function NotaFiscalPage() {
                 <StyledInput label={configFiscal.cscConfigurado ? "Novo CSC (deixe vazio para manter)" : "CSC"} type="password" autoComplete="new-password" maxLength={200} value={cscNovo} onChange={e => setCscNovo(e.target.value)}/>
               </div>
               <p style={{ color: configFiscal.cscConfigurado ? theme.primary : theme.textMuted, fontSize: 12, margin: "10px 0 0" }}>{configFiscal.cscConfigurado ? "CSC protegido e configurado." : "Nenhum CSC armazenado."}</p>
+            </Card>
+
+            <Card title="Inutilização de numeração" subtitle="Use somente para números que não foram e não serão utilizados. A operação é transmitida à SEFAZ.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12 }}>
+                <div><label style={lblStyle}>Modelo</label><select value={inutilizacao.tipo} onChange={e => {
+                  const tipo = e.target.value as "NFE" | "NFCE";
+                  setInutilizacao(i => ({ ...i, tipo, serie: tipo === "NFE" ? configFiscal.serieNfe : configFiscal.serieNfce, confirmacao: "" }));
+                }} style={inpStyle}><option value="NFE">NF-e 55</option><option value="NFCE">NFC-e 65</option></select></div>
+                <StyledInput label="Ano" type="number" min={2006} max={new Date().getFullYear()} value={inutilizacao.ano} onChange={e => setInutilizacao(i => ({ ...i, ano: Number(e.target.value), confirmacao: "" }))}/>
+                <StyledInput label="Série" inputMode="numeric" maxLength={3} value={inutilizacao.serie} onChange={e => setInutilizacao(i => ({ ...i, serie: e.target.value.replace(/\D/g, "").slice(0, 3), confirmacao: "" }))}/>
+                <StyledInput label="Número inicial" inputMode="numeric" value={inutilizacao.inicio} onChange={e => setInutilizacao(i => ({ ...i, inicio: e.target.value.replace(/\D/g, "").slice(0, 9), confirmacao: "" }))}/>
+                <StyledInput label="Número final" inputMode="numeric" value={inutilizacao.fim} onChange={e => setInutilizacao(i => ({ ...i, fim: e.target.value.replace(/\D/g, "").slice(0, 9), confirmacao: "" }))}/>
+              </div>
+              <div style={{ marginTop: 12 }}><label style={lblStyle}>Justificativa fiscal</label><textarea maxLength={255} rows={3} value={inutilizacao.justificativa} onChange={e => setInutilizacao(i => ({ ...i, justificativa: e.target.value, confirmacao: "" }))} style={{ ...inpStyle, resize: "vertical" }}/></div>
+              {inutilizacao.inicio && inutilizacao.fim && <div style={{ marginTop: 12 }}><StyledInput label={`Confirme digitando: INUTILIZAR ${inutilizacao.inicio}-${inutilizacao.fim}`} autoComplete="off" value={inutilizacao.confirmacao} onChange={e => setInutilizacao(i => ({ ...i, confirmacao: e.target.value }))}/></div>}
+              <button type="button" disabled={inutilizando || !inutilizacao.inicio || !inutilizacao.fim || !documentoHabilitado(inutilizacao.tipo)} onClick={handleInutilizarNumeracao} style={{ ...btnStyle, marginTop: 14, color: "#fff", background: theme.danger, borderColor: theme.danger, opacity: inutilizando || !documentoHabilitado(inutilizacao.tipo) ? .6 : 1 }}>
+                {inutilizando ? <Loader2 size={15} className="animate-spin"/> : <AlertTriangle size={15}/>} {inutilizando ? "Transmitindo evento..." : !documentoHabilitado(inutilizacao.tipo) ? "Modelo fiscal desabilitado" : "Inutilizar faixa na SEFAZ"}
+              </button>
             </Card>
 
             {configFiscal.ambiente === "PRODUCAO" && <label style={{ display: "flex", gap: 10, padding: 14, borderRadius: 10, background: theme.warningAlpha, border: `1px solid rgba(245,158,11,.35)`, fontSize: 12, lineHeight: 1.5 }}>

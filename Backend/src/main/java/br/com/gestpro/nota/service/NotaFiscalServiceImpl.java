@@ -424,6 +424,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     public void inutilizar(InutilizarRequest request) {
         if (request.getTipo() == null || request.getTipo() == br.com.gestpro.nota.TipoNota.NFSE)
             throw new ApiException("A inutilização 4.00 é permitida somente para NF-e ou NFC-e.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar");
+        fiscalFeatureService.validarEmissaoHabilitada(request.getEmpresaId(), request.getTipo());
         int serie;
         try { serie = Integer.parseInt(request.getSerie()); }
         catch (Exception e) { throw new ApiException("Série fiscal inválida.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/inutilizar"); }
