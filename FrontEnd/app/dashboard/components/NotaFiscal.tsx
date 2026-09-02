@@ -283,6 +283,14 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); }
   }, [EMPRESA_ID]);
 
+  const carregarCertificado = useCallback(async () => {
+    if (!EMPRESA_ID) return;
+    try {
+      const resposta = await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`);
+      setCertInfo(resposta?.dados && Object.keys(resposta.dados).length ? resposta.dados : null);
+    } catch (e: any) { setErroApi(e.message); }
+  }, [EMPRESA_ID]);
+
   useEffect(() => {
     setConfigFiscal(null); setProntidaoFiscal(null); setCscNovo(""); setConfirmarProducao(false);
     if (EMPRESA_ID) { carregarConfiguracao(); carregarProntidao(); }
@@ -409,6 +417,10 @@ export default function NotaFiscalPage() {
       return () => clearTimeout(timeout);
     }
   }, [aba, EMPRESA_ID, filtroStatus, filtroBusca, paginaAtual, carregarNotas, carregarKPIs]);
+
+  useEffect(() => {
+    if (aba === "certificado" && EMPRESA_ID) carregarCertificado();
+  }, [aba, EMPRESA_ID, carregarCertificado]);
 
   const handleConsultarCnpj = async () => {
     const limpo = clienteDoc.replace(/\D/g, "");
@@ -985,10 +997,11 @@ export default function NotaFiscalPage() {
                  </button>
               </form>
               {certInfo && (
-                <div style={{ marginTop: 20, padding: 16, background: theme.primaryAlpha, borderWidth: 1, borderStyle: "solid", borderColor: theme.primaryAlpha, borderRadius: 10, fontSize: 13 }}>
-                  <p style={{ margin: "0 0 8px 0", fontWeight: 700, color: theme.primary, display: "flex", alignItems: "center", gap: 6 }}><CheckCircle size={16}/> Certificado Operacional</p>
+                <div style={{ marginTop: 20, padding: 16, background: certInfo.expirado === "true" ? theme.dangerAlpha : certInfo.expiraEmBreve === "true" ? theme.warningAlpha : theme.primaryAlpha, borderWidth: 1, borderStyle: "solid", borderColor: certInfo.expirado === "true" ? theme.danger : certInfo.expiraEmBreve === "true" ? theme.warning : theme.primaryAlpha, borderRadius: 10, fontSize: 13 }}>
+                  <p style={{ margin: "0 0 8px 0", fontWeight: 700, color: certInfo.expirado === "true" ? theme.danger : certInfo.expiraEmBreve === "true" ? theme.warning : theme.primary, display: "flex", alignItems: "center", gap: 6 }}><CheckCircle size={16}/> {certInfo.expirado === "true" ? "Certificado expirado" : certInfo.expiraEmBreve === "true" ? "Certificado próximo do vencimento" : "Certificado operacional"}</p>
                   <p style={{ margin: "0 0 4px", color: theme.textMain }}><strong>Titular:</strong> {certInfo.titular}</p>
-                  <p style={{ margin: 0, color: theme.textMain }}><strong>Validade:</strong> {certInfo.validoAte}</p>
+                  <p style={{ margin: "0 0 4px", color: theme.textMain }}><strong>Emissor:</strong> {certInfo.emissor}</p>
+                  <p style={{ margin: 0, color: theme.textMain }}><strong>Validade:</strong> {fmtDate(certInfo.validoDe)} até {fmtDate(certInfo.validoAte)} ({certInfo.diasParaExpirar} dias)</p>
                 </div>
               )}
            </Card>

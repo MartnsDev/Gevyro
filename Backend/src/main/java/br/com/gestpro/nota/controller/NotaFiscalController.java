@@ -29,6 +29,7 @@ public class NotaFiscalController {
     private final DistributedRateLimitService rateLimit;
     private final br.com.gestpro.nota.service.NfeXmlImportService nfeXmlImportService;
     private final br.com.gestpro.nota.service.validacoes.Listar listarNotas;
+    private final br.com.gestpro.nota.service.CertificateService certificateService;
 
     // CRUD
 
@@ -246,6 +247,15 @@ public class NotaFiscalController {
     }
 
     // CERTIFICADO DIGITAL
+    @GetMapping("/certificado/{empresaId}")
+    public ResponseEntity<ApiResponse<Map<String, String>>> consultarCertificado(
+            @PathVariable Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest,
+                "/api/nota-fiscal/certificado");
+        return ResponseEntity.ok(ApiResponse.ok(certificateService.consultar(empresaId)));
+    }
+
     @PostMapping("/certificado/{empresaId}")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadCertificado(
             @PathVariable Long empresaId,
