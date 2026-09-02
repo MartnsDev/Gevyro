@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class XmlGeneratorEnvironmentTest {
-    private final XmlGeneratorService service = new XmlGeneratorService();
+    private final XmlGeneratorService service = new XmlGeneratorService(new NfceQrCodeService());
 
     @Test
     void escreveAmbienteExplicitamenteNoXml() {
@@ -56,5 +56,35 @@ class XmlGeneratorEnvironmentTest {
                 .uf("SP").cep("01001000").inscricaoEstadual("110042490114").regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
         assertThatThrownBy(() -> service.gerarXmlNfe(nota, empresa, List.of(),
                 "35260912345678000195650010000000021000000013", true)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void incluiQrCodeVersao3OnlineAntesDaAssinatura() {
+        NotaFiscal nota = NotaFiscal.builder().tipo(TipoNota.NFCE).serie("1").numeroNota(2L)
+                .dataEmissao(LocalDateTime.of(2026, 9, 1, 10, 0)).naturezaOperacao("Venda")
+                .formaPagamento(FormaPagamento.PIX).valorTotal(new BigDecimal("10.00")).build();
+        EmpresaInfo empresa = EmpresaInfo.builder().cnpj("12345678000195").razaoSocial("Empresa Teste")
+                .logradouro("Rua").numero("1").bairro("Centro").codigoIbge("3550308").municipio("São Paulo")
+                .uf("SP").cep("01001000").inscricaoEstadual("110042490114").regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
+        String chave = "35260912345678000195650010000000021000000013";
+        String xml = service.gerarXmlNfe(nota, empresa, List.of(), chave, true);
+        assertThat(xml).contains("<infNFeSupl><qrCode><![CDATA[https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p="
+                        + chave + "|3|2]]></qrCode>")
+                .contains("<urlChave>https://www.homologacao.nfce.fazenda.sp.gov.br/consulta</urlChave>")
+                .doesNotContain("cIdToken");
+        assertThat(xml.indexOf("</infNFe>")).isLessThan(xml.indexOf("<infNFeSupl>"));
+    }
+
+    @Test
+    void bloqueiaNfceOfflineEnquantoAssinaturaQrNaoEstaImplementada() {
+        NotaFiscal nota = NotaFiscal.builder().tipo(TipoNota.NFCE).serie("1").numeroNota(2L)
+                .dataEmissao(LocalDateTime.now()).naturezaOperacao("Venda").formaPagamento(FormaPagamento.PIX)
+                .valorTotal(BigDecimal.ONE).emContingencia(true).build();
+        EmpresaInfo empresa = EmpresaInfo.builder().cnpj("12345678000195").razaoSocial("Empresa")
+                .logradouro("Rua").numero("1").bairro("Centro").codigoIbge("3550308").municipio("São Paulo")
+                .uf("SP").cep("01001000").inscricaoEstadual("110042490114").regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
+        assertThatThrownBy(() -> service.gerarXmlNfe(nota, empresa, List.of(),
+                "35260912345678000195650010000000029999999990", true))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("contingência offline");
     }
 }

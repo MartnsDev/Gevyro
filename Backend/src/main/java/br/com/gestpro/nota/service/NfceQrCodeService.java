@@ -4,8 +4,8 @@ import br.com.gestpro.nota.config.NotaFiscalConfig;
 import org.springframework.stereotype.Service;
 
 /**
- * Gera os dados do QR Code NFC-e v3 sem alterar o XML transmitido.
- * A integração ao infNFeSupl permanecerá desativada até validação completa em homologação.
+ * Gera os dados do QR Code NFC-e v3 online. Contingência offline possui assinatura
+ * própria e permanece bloqueada até sua implementação específica.
  */
 @Service
 public class NfceQrCodeService {

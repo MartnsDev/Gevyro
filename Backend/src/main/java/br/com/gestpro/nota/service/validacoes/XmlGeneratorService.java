@@ -5,6 +5,8 @@ import br.com.gestpro.nota.TipoNota;
 import br.com.gestpro.nota.dto.EmpresaInfo;
 import br.com.gestpro.nota.model.ItemNotaFiscal;
 import br.com.gestpro.nota.model.NotaFiscal;
+import br.com.gestpro.nota.service.NfceQrCodeService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +27,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class XmlGeneratorService {
+
+    private final NfceQrCodeService nfceQrCodeService;
 
     private static final ZoneId      ZONE_BR = ZoneId.of("America/Sao_Paulo");
     private static final DateTimeFormatter DT_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
@@ -72,6 +77,7 @@ public class XmlGeneratorService {
         appendInfoAdicionais(xml, nota);
 
         xml.append("</infNFe>");
+        if (isNfce) appendNfceSuplementar(xml, nota, empresa, chaveAcesso, homologacao);
         xml.append("</NFe>");
 
         log.debug("XML da NF-e gerado com {} bytes.", xml.length());
@@ -325,6 +331,16 @@ public class XmlGeneratorService {
                     .append("<vPag>").append(fmt(segundo, 2)).append("</vPag></detPag>");
         }
         xml.append("</pag>");
+    }
+
+    private void appendNfceSuplementar(StringBuilder xml, NotaFiscal nota, EmpresaInfo empresa,
+                                       String chaveAcesso, boolean homologacao) {
+        if (Boolean.TRUE.equals(nota.getEmContingencia()))
+            throw new IllegalStateException("NFC-e em contingência offline ainda não possui QR Code v3 assinado e não pode ser gerada.");
+        NfceQrCodeService.DadosQrCode dados = nfceQrCodeService.gerarOnline(chaveAcesso, empresa.getUf(), homologacao);
+        xml.append("<infNFeSupl><qrCode><![CDATA[").append(dados.qrCodeUrl())
+                .append("]]></qrCode><urlChave>").append(esc(dados.consultaUrl()))
+                .append("</urlChave></infNFeSupl>");
     }
 
     /** Bloco <infAdic> — informações adicionais (opcional). */
