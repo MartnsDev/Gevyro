@@ -43,7 +43,7 @@
         <cloudinary.version>1.36.0</cloudinary.version>
         <jacoco.version>0.8.14</jacoco.version>
         <pmd.version>3.27.0</pmd.version>
-        <native.version>0.10.2</native.version>
+        <native.version>1.1.11</native.version>
         <resilience4j.version>2.4.0</resilience4j.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <zxing.version>3.5.4</zxing.version>
