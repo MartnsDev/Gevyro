@@ -137,6 +137,7 @@ export default function NotaFiscalPage() {
   const [loading, setLoading] = useState(false);
   const [emitindo, setEmitindo] = useState(false);
   const [salvandoCert, setSalvandoCert] = useState(false);
+  const [importandoXml, setImportandoXml] = useState(false);
 
   // NOVO ESTADO: MODAL DE ERRO ABSOLUTO
   const [erroApi, setErroApi] = useState<string | null>(null);
@@ -547,6 +548,25 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); }
   };
 
+  const handleImportarXml = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!arquivo || !EMPRESA_ID) return;
+    const nomeValido = arquivo.name.toLowerCase().endsWith(".xml");
+    const mimeValido = arquivo.type === "application/xml" || arquivo.type === "text/xml";
+    if (!nomeValido || !mimeValido) { setErroApi("Selecione um arquivo XML válido."); return; }
+    if (arquivo.size === 0 || arquivo.size > 2 * 1024 * 1024) { setErroApi("O XML deve possuir entre 1 byte e 2 MiB."); return; }
+    setImportandoXml(true);
+    try {
+      const formData = new FormData(); formData.append("arquivo", arquivo, arquivo.name);
+      const resposta = await fetchSeguro(`${API_BASE}/importar-xml?empresaId=${EMPRESA_ID}`, { method: "POST", body: formData });
+      const nota = resposta?.dados;
+      toast.success(`XML autorizado importado${nota?.numeroNota ? ` — nota ${nota.numeroNota}` : ""}.`);
+      setPaginaAtual(1); await Promise.all([carregarNotas(), carregarKPIs()]);
+    } catch (erro: any) { setErroApi(erro.message); }
+    finally { setImportandoXml(false); }
+  };
+
   const handleUploadCertificado = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!arquivoCert || !senhaCert) { setErroApi("Preencha o arquivo .pfx e digite a senha."); return; }
@@ -692,6 +712,10 @@ export default function NotaFiscalPage() {
                 <option value="CONTINGENCIA">Contingência</option>
                 <option value="DIGITACAO">Rascunhos</option>
               </select>
+              <label aria-disabled={importandoXml} style={{ ...btnStyle, background: theme.bgCard, cursor: importandoXml ? "not-allowed" : "pointer", opacity: importandoXml ? .6 : 1 }}>
+                {importandoXml ? <Loader2 size={15} className="animate-spin"/> : <Upload size={15}/>} {importandoXml ? "Validando XML..." : "Importar XML"}
+                <input type="file" accept="application/xml,text/xml,.xml" disabled={importandoXml} onChange={handleImportarXml} style={{ display: "none" }}/>
+              </label>
             </div>
 
             <div style={{ background: theme.bgCard, borderWidth: 1, borderStyle: "solid", borderColor: theme.border, borderRadius: 14, overflow: "hidden", overflowX: "auto" }}>
