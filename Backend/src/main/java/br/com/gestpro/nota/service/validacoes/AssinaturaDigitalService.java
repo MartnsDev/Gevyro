@@ -28,21 +28,27 @@ import java.util.List;
 
 @Service
 public class AssinaturaDigitalService {
+    private static final String NS_NFE = "http://www.portalfiscal.inf.br/nfe";
+    private static final String NS_NFSE = "http://www.sped.fazenda.gov.br/nfse";
 
     public String assinarXml(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
-        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infNFe");
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, NS_NFE, "infNFe");
     }
 
     public String assinarEvento(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
-        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infEvento");
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, NS_NFE, "infEvento");
     }
 
     public String assinarInutilizacao(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
-        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, "infInut");
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, NS_NFE, "infInut");
+    }
+
+    public String assinarDps(String xmlConteudo, byte[] pfxBytes, String senhaCert) throws Exception {
+        return assinarElemento(xmlConteudo, pfxBytes, senhaCert, NS_NFSE, "infDPS");
     }
 
     private String assinarElemento(String xmlConteudo, byte[] pfxBytes, String senhaCert,
-                                   String elementoLocal) throws Exception {
+                                   String namespace, String elementoLocal) throws Exception {
         // Carrega o certificado do KeyStore
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         try (InputStream is = new ByteArrayInputStream(pfxBytes)) {
@@ -68,7 +74,7 @@ public class AssinaturaDigitalService {
             doc = db.parse(is);
         }
 
-        NodeList elementos = doc.getElementsByTagNameNS("http://www.portalfiscal.inf.br/nfe", elementoLocal);
+        NodeList elementos = doc.getElementsByTagNameNS(namespace, elementoLocal);
         if (elementos.getLength() != 1) {
             throw new IllegalArgumentException("XML fiscal deve possuir exatamente um elemento " + elementoLocal + ".");
         }

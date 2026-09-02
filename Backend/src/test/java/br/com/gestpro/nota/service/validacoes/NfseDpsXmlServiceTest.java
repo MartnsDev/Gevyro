@@ -11,12 +11,13 @@ import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 class NfseDpsXmlServiceTest {
     @Test void geraDpsMinimaCompativelComXsdOficialV101() {
         FiscalXsdValidationService validator = new FiscalXsdValidationService();
         validator.carregarSchema();
-        NfseDpsXmlService service = new NfseDpsXmlService(validator);
+        NfseDpsXmlService service = new NfseDpsXmlService(validator, new AssinaturaDigitalService());
 
         String xml = service.gerar(dados("Consultoria & desenvolvimento"));
 
@@ -38,8 +39,30 @@ class NfseDpsXmlServiceTest {
                 invalido.tributacaoIssqn(), invalido.retencaoIssqn(), invalido.aliquotaIssqn());
 
         DpsNacionalDados finalInvalido = invalido;
-        assertThatThrownBy(() -> new NfseDpsXmlService(validator).gerar(finalInvalido))
+        assertThatThrownBy(() -> new NfseDpsXmlService(validator, new AssinaturaDigitalService()).gerar(finalInvalido))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("tributação nacional");
+    }
+
+    @Test void assinaInfDpsEValidaNovamenteSemExporCertificado() throws Exception {
+        FiscalXsdValidationService validator = mock(FiscalXsdValidationService.class);
+        AssinaturaDigitalService assinatura = mock(AssinaturaDigitalService.class);
+        NfseDpsXmlService service = new NfseDpsXmlService(validator, assinatura);
+        byte[] certificadoEfemero = {1, 2, 3};
+        String xmlAssinado = "<DPS><infDPS Id=\"DPS1\"/><Signature/></DPS>";
+        when(assinatura.assinarDps(anyString(), same(certificadoEfemero), eq("senha-efemera")))
+                .thenReturn(xmlAssinado);
+
+        assertThat(service.gerarAssinada(dados("Serviço"), certificadoEfemero, "senha-efemera"))
+                .isEqualTo(xmlAssinado);
+        verify(assinatura).assinarDps(contains("<infDPS Id=\"DPS"), same(certificadoEfemero), eq("senha-efemera"));
+        verify(validator).validarDpsNacional(xmlAssinado);
+    }
+
+    @Test void recusaAssinaturaSemMaterialCriptografico() {
+        NfseDpsXmlService service = new NfseDpsXmlService(mock(FiscalXsdValidationService.class),
+                mock(AssinaturaDigitalService.class));
+        assertThatThrownBy(() -> service.gerarAssinada(dados("Serviço"), new byte[0], null))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Certificado A1");
     }
 
     private DpsNacionalDados dados(String descricao) {

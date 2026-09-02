@@ -2,6 +2,7 @@ package br.com.gestpro.nota.service;
 
 import br.com.gestpro.nota.dto.DpsNacionalDados;
 import br.com.gestpro.nota.service.validacoes.FiscalXsdValidationService;
+import br.com.gestpro.nota.service.validacoes.AssinaturaDigitalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,22 @@ import java.time.format.DateTimeFormatter;
 public class NfseDpsXmlService {
     private static final DateTimeFormatter DATA = DateTimeFormatter.ISO_LOCAL_DATE;
     private final FiscalXsdValidationService xsd;
+    private final AssinaturaDigitalService assinatura;
+
+    public String gerarAssinada(DpsNacionalDados dados, byte[] pfx, String senhaCertificado) {
+        if (pfx == null || pfx.length == 0 || senhaCertificado == null)
+            throw new IllegalArgumentException("Certificado A1 e senha são obrigatórios para assinar a DPS.");
+        String xml = gerar(dados);
+        try {
+            String assinado = assinatura.assinarDps(xml, pfx, senhaCertificado);
+            xsd.validarDpsNacional(assinado);
+            return assinado;
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Não foi possível assinar a DPS com o certificado da empresa.", e);
+        }
+    }
 
     public String gerar(DpsNacionalDados d) {
         validar(d);
