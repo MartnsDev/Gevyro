@@ -150,6 +150,7 @@ export default function NotaFiscalPage() {
   const [enviandoCce, setEnviandoCce] = useState(false);
 
   const [tipoNota, setTipoNota] = useState<TipoNota>("NFE");
+  const [passoEmissao, setPassoEmissao] = useState(1);
   const [naturezaOp, setNaturezaOp] = useState("Venda de Mercadoria");
   const [formaPagamento, setFormaPagamento] = useState("PIX");
   const [clienteDoc, setClienteDoc] = useState("");
@@ -273,6 +274,7 @@ export default function NotaFiscalPage() {
 
   useEffect(() => {
     setRascunhoPronto(false);
+    setPassoEmissao(1);
     setTipoNota("NFE"); setNaturezaOp("Venda de Mercadoria"); setFormaPagamento("PIX");
     setClienteDoc(""); setClienteNome(""); setInfoAdicionais(""); setItens([]); setRascunhoSalvoEm(null);
     if (!EMPRESA_ID) return;
@@ -450,11 +452,11 @@ export default function NotaFiscalPage() {
         sessionStorage.removeItem(storageKey);
         sessionStorage.removeItem(chaveRascunho(EMPRESA_ID)); setRascunhoSalvoEm(null);
         toast.success(status==="AUTORIZADA"?"Nota autorizada com sucesso!":"Nota salva em contingência para transmissão posterior.");
-        setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
+        setAba("historico"); setPassoEmissao(1); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
       } else if (status === "PENDENTE_EMISSAO" || status === "PROCESSANDO" || status === "VALIDANDO") {
         sessionStorage.removeItem(chaveRascunho(EMPRESA_ID)); setRascunhoSalvoEm(null);
         toast.success("Nota recebida e enfileirada para emissão fiscal.");
-        setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
+        setAba("historico"); setPassoEmissao(1); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
       } else {
         setErroApi(`A nota não foi autorizada. Status retornado: ${resEmitir?.dados?.status || resEmitir?.status}`);
       }
@@ -551,6 +553,28 @@ export default function NotaFiscalPage() {
 
   const totalNota = itens.reduce((acc, i) => acc + ((i.quantidade * i.valorUnitario) - i.valorDesconto), 0);
   const adicionarItem = () => setItens([...itens, { id: Date.now(), descricao: "", ncm: "", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 0, valorDesconto: 0, csosn: "102" }]);
+  const validarPassoEmissao = () => {
+    if (passoEmissao === 1) {
+      if (!documentoHabilitado(tipoNota)) return "Selecione um modelo fiscal habilitado para esta empresa.";
+      if (!naturezaOp.trim()) return "Informe a natureza da operação.";
+      const doc = clienteDoc.replace(/\D/g, "");
+      if (doc && doc.length !== 11 && doc.length !== 14) return "O CPF/CNPJ deve conter 11 ou 14 dígitos.";
+      if (doc && !clienteNome.trim()) return "Informe o nome ou razão social do destinatário.";
+    }
+    if (passoEmissao === 2) {
+      if (itens.length === 0) return "Adicione pelo menos um item.";
+      const indice = itens.findIndex(i => !i.descricao.trim() || !/^\d{8}$/.test(i.ncm) || !/^\d{4}$/.test(i.cfop)
+        || !i.unidade.trim() || i.quantidade <= 0 || i.valorUnitario < 0 || i.valorDesconto < 0
+        || i.valorDesconto > i.quantidade * i.valorUnitario || !i.csosn.trim());
+      if (indice >= 0) return `Revise os dados fiscais e valores do item ${indice + 1}.`;
+    }
+    return null;
+  };
+  const avancarPasso = () => {
+    const erro = validarPassoEmissao();
+    if (erro) { setErroApi(erro); return; }
+    setPassoEmissao(p => Math.min(4, p + 1));
+  };
   const notasFiltradas = notas;
 
   if (!EMPRESA_ID) {
@@ -699,6 +723,19 @@ export default function NotaFiscalPage() {
             {rascunhoSalvoEm && <div role="status" style={{ alignSelf: "flex-end", color: theme.textMuted, fontSize: 11 }}>
               Rascunho temporário salvo neste navegador às {new Date(rascunhoSalvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
             </div>}
+            <div aria-label="Etapas da emissão" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(120px, 1fr))", gap: 8 }}>
+              {["Operação", "Itens e tributação", "Pagamento", "Revisão"].map((nome, indice) => {
+                const numero = indice + 1;
+                return <button key={nome} type="button" onClick={() => numero < passoEmissao && setPassoEmissao(numero)}
+                  aria-current={numero === passoEmissao ? "step" : undefined} style={{ ...btnStyle, justifyContent: "center",
+                    cursor: numero < passoEmissao ? "pointer" : "default", background: numero === passoEmissao ? theme.primaryAlpha : theme.bgCard,
+                    borderColor: numero === passoEmissao ? theme.primary : theme.border, color: numero === passoEmissao ? theme.primary : theme.textMuted }}>
+                  {numero}. {nome}
+                </button>;
+              })}
+            </div>
+
+            {passoEmissao === 1 && <>
             <div>
               <SectionTitle>Selecione o Modelo</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
@@ -734,15 +771,11 @@ export default function NotaFiscalPage() {
                  </div>
                  <StyledInput label="Nome ou Razão Social" value={clienteNome} onChange={e => setClienteNome(e.target.value)} />
                  <StyledInput label="Natureza da Operação" value={naturezaOp} onChange={e => setNaturezaOp(e.target.value)} />
-                 <div>
-                    <label style={lblStyle}>PAGAMENTO</label>
-                    <select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} style={inpStyle}>
-                        <option value="PIX">Pix</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO_CREDITO">Cartão de Crédito</option>
-                    </select>
-                 </div>
               </div>
             </Card>
+            </>}
 
+            {passoEmissao === 2 &&
             <Card>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, alignItems: "center" }}>
                 <SectionTitle>Produtos da Nota</SectionTitle>
@@ -754,11 +787,15 @@ export default function NotaFiscalPage() {
               {itens.length === 0 && <div style={{ textAlign: "center", padding: 30, color: theme.textMuted, fontSize: 13, borderStyle: "dashed", borderWidth: 1, borderColor: theme.border, borderRadius: 10 }}>Nenhum produto adicionado.</div>}
 
               {itens.map((it, idx) => (
-                <div key={it.id} style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1fr 1fr 1fr 40px", gap: 10, marginBottom: 15 }}>
+                <div key={it.id} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(105px, 1fr))", gap: 10, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${theme.border}` }}>
                   <StyledInput label="Descrição" value={it.descricao} onChange={e => { const n = [...itens]; n[idx].descricao = e.target.value; setItens(n); }} />
-                  <StyledInput label="NCM" value={it.ncm} onChange={e => { const n = [...itens]; n[idx].ncm = e.target.value; setItens(n); }} />
-                  <StyledInput label="Qtd" type="number" value={it.quantidade} onChange={e => { const n = [...itens]; n[idx].quantidade = Number(e.target.value); setItens(n); }} />
-                  <StyledInput label="R$ Unit" type="number" value={it.valorUnitario} onChange={e => { const n = [...itens]; n[idx].valorUnitario = Number(e.target.value); setItens(n); }} />
+                  <StyledInput label="NCM" inputMode="numeric" maxLength={8} value={it.ncm} onChange={e => { const n = [...itens]; n[idx].ncm = e.target.value.replace(/\D/g, "").slice(0, 8); setItens(n); }} />
+                  <StyledInput label="CFOP" inputMode="numeric" maxLength={4} value={it.cfop} onChange={e => { const n = [...itens]; n[idx].cfop = e.target.value.replace(/\D/g, "").slice(0, 4); setItens(n); }} />
+                  <StyledInput label="Unidade" maxLength={6} value={it.unidade} onChange={e => { const n = [...itens]; n[idx].unidade = e.target.value.toUpperCase(); setItens(n); }} />
+                  <StyledInput label="CSOSN" inputMode="numeric" maxLength={4} value={it.csosn} onChange={e => { const n = [...itens]; n[idx].csosn = e.target.value.replace(/\D/g, "").slice(0, 4); setItens(n); }} />
+                  <StyledInput label="Quantidade" type="number" min="0.0001" step="0.0001" value={it.quantidade} onChange={e => { const n = [...itens]; n[idx].quantidade = Number(e.target.value); setItens(n); }} />
+                  <StyledInput label="Valor unitário" type="number" min="0" step="0.01" value={it.valorUnitario} onChange={e => { const n = [...itens]; n[idx].valorUnitario = Number(e.target.value); setItens(n); }} />
+                  <StyledInput label="Desconto" type="number" min="0" step="0.01" value={it.valorDesconto} onChange={e => { const n = [...itens]; n[idx].valorDesconto = Number(e.target.value); setItens(n); }} />
                   <div>
                     <label style={lblStyle}>Total</label>
                     <div style={{ padding: "9px 12px", fontWeight: 700, fontSize: 13, color: theme.primary, background: theme.primaryAlpha, borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: theme.primaryAlpha }}>
@@ -766,10 +803,11 @@ export default function NotaFiscalPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 20 }}>
-                    <button onClick={() => setItens(itens.filter(i => i.id !== it.id))} style={{ color: theme.danger, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={18}/></button>
+                    <button aria-label={`Remover item ${idx + 1}`} onClick={() => setItens(itens.filter(i => i.id !== it.id))} style={{ color: theme.danger, background: "none", border: "none", cursor: "pointer" }}><Trash2 size={18}/></button>
                   </div>
                 </div>
               ))}
+              <p style={{ color: theme.warning, fontSize: 11, lineHeight: 1.5 }}>CFOP, NCM e CSOSN devem ser confirmados pelo responsável fiscal ou contador. A tela não corrige tributação automaticamente.</p>
               
               {itens.length > 0 && (
                 <div style={{ textAlign: "right", marginTop: 20, borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: theme.border, paddingTop: 16 }}>
@@ -777,12 +815,38 @@ export default function NotaFiscalPage() {
                   <span style={{ fontSize: 24, fontWeight: 800, color: theme.textMain }}>{fmt(totalNota)}</span>
                 </div>
               )}
-            </Card>
+            </Card>}
 
-            <button disabled={emitindo || !documentoHabilitado(tipoNota)} onClick={handleEmitir} style={{ background: theme.primary, color: "#000", padding: 16, borderRadius: 12, fontSize: 14, fontWeight: 800, border: "none", cursor: emitindo || !documentoHabilitado(tipoNota) ? "not-allowed" : "pointer", opacity: !documentoHabilitado(tipoNota) ? .55 : 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "opacity 0.2s" }}>
+            {passoEmissao === 3 && <Card title="Pagamento e informações adicionais">
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) 2fr", gap: 16 }}>
+                <div><label style={lblStyle}>Pagamento</label><select value={formaPagamento} onChange={e => setFormaPagamento(e.target.value)} style={inpStyle}>
+                  <option value="PIX">Pix</option><option value="DINHEIRO">Dinheiro</option><option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                </select></div>
+                <div><label style={lblStyle}>Informações adicionais</label><textarea maxLength={2000} rows={5} value={infoAdicionais} onChange={e => setInfoAdicionais(e.target.value)} style={{ ...inpStyle, resize: "vertical" }}/></div>
+              </div>
+            </Card>}
+
+            {passoEmissao === 4 && <Card title="Revisão antes da emissão" subtitle="Confira todos os dados. A Gevyro não altera a tributação automaticamente.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, fontSize: 13 }}>
+                <div><span style={lblStyle}>Documento</span><strong>{tipoNota}</strong></div>
+                <div><span style={lblStyle}>Ambiente</span><strong style={{ color: configFiscal?.ambiente === "PRODUCAO" ? theme.danger : theme.warning }}>{configFiscal?.ambiente}</strong></div>
+                <div><span style={lblStyle}>Destinatário</span><strong>{clienteNome || "Consumidor não identificado"}</strong></div>
+                <div><span style={lblStyle}>CPF/CNPJ</span><strong>{clienteDoc || "Não informado"}</strong></div>
+                <div><span style={lblStyle}>Natureza</span><strong>{naturezaOp}</strong></div>
+                <div><span style={lblStyle}>Pagamento</span><strong>{formaPagamento.replaceAll("_", " ")}</strong></div>
+                <div><span style={lblStyle}>Itens</span><strong>{itens.length}</strong></div>
+                <div><span style={lblStyle}>Total</span><strong style={{ color: theme.primary }}>{fmt(totalNota)}</strong></div>
+              </div>
+            </Card>}
+
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <button type="button" disabled={passoEmissao === 1 || emitindo} onClick={() => setPassoEmissao(p => Math.max(1, p - 1))} style={{ ...btnStyle, opacity: passoEmissao === 1 ? .5 : 1 }}><ChevronLeft size={16}/> Voltar</button>
+              {passoEmissao < 4 && <button type="button" onClick={avancarPasso} style={{ ...btnStyle, background: theme.primary, color: "#000", borderColor: theme.primary }}>Continuar <ChevronRight size={16}/></button>}
+            {passoEmissao === 4 && <button disabled={emitindo || !documentoHabilitado(tipoNota)} onClick={handleEmitir} style={{ background: theme.primary, color: "#000", padding: 16, borderRadius: 12, fontSize: 14, fontWeight: 800, border: "none", cursor: emitindo || !documentoHabilitado(tipoNota) ? "not-allowed" : "pointer", opacity: !documentoHabilitado(tipoNota) ? .55 : 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "opacity 0.2s" }}>
               {emitindo ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} 
               {emitindo ? "PROCESSANDO SEFAZ..." : "TRANSMITIR NOTA FISCAL"}
-            </button>
+            </button>}
+            </div>
           </div>
         )}
 
