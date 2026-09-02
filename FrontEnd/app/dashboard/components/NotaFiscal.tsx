@@ -7,7 +7,7 @@ import {
   FileText, Upload, Download, Plus, Search, CheckCircle,
   XCircle, ShieldCheck, FileArchive, Send, Trash2, Loader2,
   AlertTriangle, Receipt, Briefcase, Eye, X, RefreshCw, 
-  Building2, ChevronLeft, ChevronRight, TrendingUp, Store, FilePenLine
+  Building2, ChevronLeft, ChevronRight, TrendingUp, Store, FilePenLine, Settings
 } from "lucide-react";
 import { useEmpresa } from "../context/Empresacontext";
 import { fetchAuth } from "@/lib/api-v2";
@@ -41,8 +41,13 @@ const lblStyle = { display: "block", fontSize: "11px", fontWeight: 600, color: t
 const btnStyle = { background: theme.bgInput, borderWidth: 1, borderStyle: "solid", borderColor: theme.border, padding: "8px 14px", borderRadius: 8, cursor: "pointer", color: theme.textMain, display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, transition: "all 0.2s" };
 
 // 3. TIPOS E COMPONENTES AUXILIARES
-type AbaGeral = "historico" | "emitir" | "certificado" | "contador";
+type AbaGeral = "historico" | "emitir" | "configuracao" | "certificado" | "contador";
 type TipoNota = "NFE" | "NFCE" | "NFSE";
+type ConfiguracaoFiscal = {
+  inscricaoEstadual: string; regimeTributario: string; ambiente: "HOMOLOGACAO" | "PRODUCAO";
+  serieNfe: string; serieNfce: string; cscId: string; cscConfigurado: boolean;
+  fiscalHabilitado: boolean; nfeHabilitada: boolean; nfceHabilitada: boolean; nfseHabilitada: boolean;
+};
 
 const fmt = (v?: number | null) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 const fmtDate = (s?: string) => s ? new Date(s).toLocaleString("pt-BR") : "—";
@@ -142,6 +147,10 @@ export default function NotaFiscalPage() {
   const [certInfo, setCertInfo] = useState<any>(null);
   const [periodoExport, setPeriodoExport] = useState(new Date().toISOString().slice(0, 7));
   const [tipoSped, setTipoSped] = useState("EFD_ICMS_IPI");
+  const [configFiscal, setConfigFiscal] = useState<ConfiguracaoFiscal | null>(null);
+  const [cscNovo, setCscNovo] = useState("");
+  const [confirmarProducao, setConfirmarProducao] = useState(false);
+  const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   // API SEGURA
   const fetchSeguro = async (url: string, options: RequestInit = {}) => {
@@ -222,6 +231,58 @@ export default function NotaFiscalPage() {
     } catch (e) { /* Ignora no carregamento automático para não travar a tela inicial */ }
   }, [EMPRESA_ID]);
 
+  const carregarConfiguracao = useCallback(async () => {
+    if (!EMPRESA_ID) return;
+    try {
+      const res = await fetchAuth(`/api/fiscal/configuracao/${EMPRESA_ID}`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.mensagem || "Não foi possível carregar a configuração fiscal.");
+      const c = json?.dados;
+      setConfigFiscal({
+        inscricaoEstadual: c?.inscricaoEstadual ?? "", regimeTributario: c?.regimeTributario ?? "SIMPLES_NACIONAL",
+        ambiente: c?.ambiente ?? "HOMOLOGACAO", serieNfe: c?.serieNfe ?? "1", serieNfce: c?.serieNfce ?? "1",
+        cscId: c?.cscId ?? "", cscConfigurado: Boolean(c?.cscConfigurado),
+        fiscalHabilitado: Boolean(c?.fiscalHabilitado), nfeHabilitada: Boolean(c?.nfeHabilitada),
+        nfceHabilitada: Boolean(c?.nfceHabilitada), nfseHabilitada: Boolean(c?.nfseHabilitada)
+      });
+    } catch (e: any) { setErroApi(e.message); }
+  }, [EMPRESA_ID]);
+
+  useEffect(() => {
+    setConfigFiscal(null); setCscNovo(""); setConfirmarProducao(false);
+    if (EMPRESA_ID) carregarConfiguracao();
+  }, [EMPRESA_ID, carregarConfiguracao]);
+
+  const salvarConfiguracao = async () => {
+    if (!EMPRESA_ID || !configFiscal) return;
+    setSalvandoConfig(true);
+    try {
+      const res = await fetchAuth(`/api/fiscal/configuracao/${EMPRESA_ID}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inscricaoEstadual: configFiscal.inscricaoEstadual,
+          regimeTributario: configFiscal.regimeTributario,
+          ambiente: configFiscal.ambiente,
+          serieNfe: configFiscal.serieNfe,
+          serieNfce: configFiscal.serieNfce,
+          cscId: configFiscal.cscId,
+          csc: cscNovo || null,
+          fiscalHabilitado: configFiscal.fiscalHabilitado,
+          nfeHabilitada: configFiscal.nfeHabilitada,
+          nfceHabilitada: configFiscal.nfceHabilitada,
+          nfseHabilitada: configFiscal.nfseHabilitada,
+          confirmarProducao
+        })
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.mensagem || "Não foi possível salvar a configuração fiscal.");
+      setCscNovo(""); setConfirmarProducao(false);
+      await carregarConfiguracao();
+      toast.success("Configuração fiscal salva com segurança.");
+    } catch (e: any) { setErroApi(e.message); }
+    finally { setSalvandoConfig(false); }
+  };
+
   const carregarNotas = useCallback(async () => {
     if (!EMPRESA_ID) return;
     setLoading(true);
@@ -247,6 +308,9 @@ export default function NotaFiscalPage() {
     }
   }, [EMPRESA_ID, filtroStatus, filtroBusca, paginaAtual]);
 
+  const documentoHabilitado = (tipo: TipoNota) => Boolean(configFiscal?.fiscalHabilitado
+    && (tipo === "NFE" ? configFiscal.nfeHabilitada : tipo === "NFCE" ? configFiscal.nfceHabilitada : false));
+
   useEffect(() => {
     if (aba === "historico" && EMPRESA_ID) {
       carregarKPIs();
@@ -270,6 +334,7 @@ export default function NotaFiscalPage() {
   };
 
   const handleEmitir = async () => {
+    if (!documentoHabilitado(tipoNota)) { setErroApi("Este tipo de documento não está habilitado na configuração fiscal da empresa."); return; }
     if (itens.length === 0) { setErroApi("Você precisa adicionar pelo menos um produto/serviço à nota."); return; }
     if (!EMPRESA_ID) { setErroApi("Nenhuma empresa selecionada para a emissão."); return; }
     if (tipoNota === "NFSE") { setErroApi("A NFS-e depende da integração específica da prefeitura e ainda não está disponível para transmissão."); return; }
@@ -471,9 +536,9 @@ export default function NotaFiscalPage() {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 8, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border }}>
           {[
-            { id: "historico", label: "Histórico" }, { id: "emitir", label: "Nova Emissão" },
+            { id: "historico", label: "Histórico" }, { id: "emitir", label: "Nova Emissão" }, { id: "configuracao", label: "Configuração" },
             { id: "certificado", label: "Certificado Digital" }, { id: "contador", label: "Contabilidade" }
           ].map(t => {
             const isAtivo = aba === t.id;
@@ -560,16 +625,16 @@ export default function NotaFiscalPage() {
               <SectionTitle>Selecione o Modelo</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
                 {(["NFE", "NFCE", "NFSE"] as TipoNota[]).map(t => (
-                  <button key={t} onClick={() => t!=="NFSE"&&setTipoNota(t)} disabled={t==="NFSE"} style={{
+                  <button key={t} onClick={() => documentoHabilitado(t)&&setTipoNota(t)} disabled={!documentoHabilitado(t)} style={{
                     display: "flex", flexDirection: "column", gap: 8, padding: "16px 15px",
                     background: tipoNota === t ? theme.primaryAlpha : theme.bgCard,
                     borderWidth: 1, borderStyle: "solid", borderColor: tipoNota === t ? theme.primary : theme.border, 
-                    borderRadius: 12, cursor: t==="NFSE"?"not-allowed":"pointer", textAlign: "left", transition: "all .16s",opacity:t==="NFSE"?.5:1
+                    borderRadius: 12, cursor: !documentoHabilitado(t)?"not-allowed":"pointer", textAlign: "left", transition: "all .16s",opacity:!documentoHabilitado(t)?.5:1
                   }}>
                     <div style={{ color: tipoNota === t ? theme.primary : theme.textMain }}><Receipt size={20} /></div>
                     <div>
                       <p style={{ fontSize: 13, fontWeight: 700, color: theme.textMain, margin: 0 }}>{t}</p>
-                      <p style={{ fontSize: 11, color: theme.textMuted, margin: "3px 0 0" }}>{t === "NFE" ? "Produto (Mod. 55)" : t === "NFCE" ? "Consumidor (Mod. 65)" : "Integração municipal — em breve"}</p>
+                      <p style={{ fontSize: 11, color: theme.textMuted, margin: "3px 0 0" }}>{!documentoHabilitado(t) ? "Desabilitada na configuração" : t === "NFE" ? "Produto (Mod. 55)" : "Consumidor (Mod. 65)"}</p>
                     </div>
                   </button>
                 ))}
@@ -636,9 +701,69 @@ export default function NotaFiscalPage() {
               )}
             </Card>
 
-            <button disabled={emitindo} onClick={handleEmitir} style={{ background: theme.primary, color: "#000", padding: 16, borderRadius: 12, fontSize: 14, fontWeight: 800, border: "none", cursor: emitindo ? "not-allowed" : "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "opacity 0.2s" }}>
+            <button disabled={emitindo || !documentoHabilitado(tipoNota)} onClick={handleEmitir} style={{ background: theme.primary, color: "#000", padding: 16, borderRadius: 12, fontSize: 14, fontWeight: 800, border: "none", cursor: emitindo || !documentoHabilitado(tipoNota) ? "not-allowed" : "pointer", opacity: !documentoHabilitado(tipoNota) ? .55 : 1, display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "opacity 0.2s" }}>
               {emitindo ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} 
               {emitindo ? "PROCESSANDO SEFAZ..." : "TRANSMITIR NOTA FISCAL"}
+            </button>
+          </div>
+        )}
+
+        {/* ABA: CONFIGURAÇÃO E ROLLOUT */}
+        {aba === "configuracao" && (
+          !configFiscal ? <Card><div style={{ display: "flex", alignItems: "center", gap: 10, color: theme.textMuted }}><Loader2 size={18} className="animate-spin"/> Carregando configuração fiscal...</div></Card> :
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <Card title="Rollout por empresa" subtitle="Nenhuma emissão é liberada apenas por aparecer na interface.">
+              <label style={{ display: "flex", gap: 12, alignItems: "center", padding: 14, border: `1px solid ${theme.border}`, borderRadius: 10, cursor: "pointer" }}>
+                <input type="checkbox" checked={configFiscal.fiscalHabilitado} onChange={e => setConfigFiscal({ ...configFiscal,
+                  fiscalHabilitado: e.target.checked,
+                  ...(!e.target.checked ? { nfeHabilitada: false, nfceHabilitada: false, nfseHabilitada: false } : {})
+                })}/>
+                <div><strong style={{ color: theme.textMain }}>Habilitar Gevyro Fiscal</strong><div style={{ color: theme.textMuted, fontSize: 12, marginTop: 3 }}>Chave geral desta empresa. Os documentos continuam dependendo das opções abaixo.</div></div>
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+                {[
+                  { campo: "nfeHabilitada" as const, nome: "NF-e modelo 55", bloqueado: false },
+                  { campo: "nfceHabilitada" as const, nome: "NFC-e modelo 65", bloqueado: false },
+                  { campo: "nfseHabilitada" as const, nome: "NFS-e Nacional", bloqueado: configFiscal.ambiente === "PRODUCAO" }
+                ].map(item => <label key={item.campo} style={{ padding: 12, border: `1px solid ${theme.border}`, borderRadius: 9, opacity: !configFiscal.fiscalHabilitado || item.bloqueado ? .55 : 1, cursor: "pointer" }}>
+                  <input type="checkbox" checked={configFiscal[item.campo]} disabled={!configFiscal.fiscalHabilitado || item.bloqueado}
+                    onChange={e => setConfigFiscal({ ...configFiscal, [item.campo]: e.target.checked })}/>
+                  <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 700 }}>{item.nome}</span>
+                </label>)}
+              </div>
+            </Card>
+
+            <Card title="Ambiente, séries e tributação" subtitle="Homologação não produz documento fiscal com valor jurídico.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+                <div><label style={lblStyle}>Ambiente</label><select value={configFiscal.ambiente} onChange={e => {
+                  const ambiente = e.target.value as ConfiguracaoFiscal["ambiente"];
+                  setConfigFiscal({ ...configFiscal, ambiente, ...(ambiente === "PRODUCAO" ? { nfseHabilitada: false } : {}) });
+                  setConfirmarProducao(false);
+                }} style={inpStyle}><option value="HOMOLOGACAO">Homologação</option><option value="PRODUCAO">Produção</option></select></div>
+                <div><label style={lblStyle}>Regime tributário</label><select value={configFiscal.regimeTributario} onChange={e => setConfigFiscal({ ...configFiscal, regimeTributario: e.target.value })} style={inpStyle}>
+                  <option value="SIMPLES_NACIONAL">Simples Nacional</option><option value="SIMPLES_NACIONAL_EXCESSO">Simples — excesso de sublimite</option><option value="LUCRO_PRESUMIDO">Lucro presumido</option><option value="LUCRO_REAL">Lucro real</option>
+                </select></div>
+                <StyledInput label="Inscrição estadual" maxLength={20} value={configFiscal.inscricaoEstadual} onChange={e => setConfigFiscal({ ...configFiscal, inscricaoEstadual: e.target.value })}/>
+                <StyledInput label="Série NF-e" inputMode="numeric" maxLength={3} value={configFiscal.serieNfe} onChange={e => setConfigFiscal({ ...configFiscal, serieNfe: e.target.value.replace(/\D/g, "") })}/>
+                <StyledInput label="Série NFC-e" inputMode="numeric" maxLength={3} value={configFiscal.serieNfce} onChange={e => setConfigFiscal({ ...configFiscal, serieNfce: e.target.value.replace(/\D/g, "") })}/>
+              </div>
+            </Card>
+
+            <Card title="CSC da NFC-e" subtitle="O segredo existente nunca é retornado pelo servidor.">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 14 }}>
+                <StyledInput label="Identificador CSC" maxLength={20} value={configFiscal.cscId} onChange={e => setConfigFiscal({ ...configFiscal, cscId: e.target.value })}/>
+                <StyledInput label={configFiscal.cscConfigurado ? "Novo CSC (deixe vazio para manter)" : "CSC"} type="password" autoComplete="new-password" maxLength={200} value={cscNovo} onChange={e => setCscNovo(e.target.value)}/>
+              </div>
+              <p style={{ color: configFiscal.cscConfigurado ? theme.primary : theme.textMuted, fontSize: 12, margin: "10px 0 0" }}>{configFiscal.cscConfigurado ? "CSC protegido e configurado." : "Nenhum CSC armazenado."}</p>
+            </Card>
+
+            {configFiscal.ambiente === "PRODUCAO" && <label style={{ display: "flex", gap: 10, padding: 14, borderRadius: 10, background: theme.warningAlpha, border: `1px solid rgba(245,158,11,.35)`, fontSize: 12, lineHeight: 1.5 }}>
+              <input type="checkbox" checked={confirmarProducao} onChange={e => setConfirmarProducao(e.target.checked)} style={{ marginTop: 2 }}/>
+              Confirmo que revisei cadastro, tributação, séries, certificado e CSC com o responsável fiscal. Entendo que produção pode gerar documentos com validade jurídica.
+            </label>}
+
+            <button onClick={salvarConfiguracao} disabled={salvandoConfig || (configFiscal.ambiente === "PRODUCAO" && !confirmarProducao)} style={{ ...btnStyle, alignSelf: "flex-end", background: theme.primary, color: "#fff", borderColor: theme.primary, opacity: salvandoConfig || (configFiscal.ambiente === "PRODUCAO" && !confirmarProducao) ? .55 : 1 }}>
+              {salvandoConfig ? <Loader2 size={16} className="animate-spin"/> : <Settings size={16}/>} Salvar configuração
             </button>
           </div>
         )}
