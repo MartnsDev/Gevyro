@@ -19,6 +19,7 @@ public class FiscalEmissionQueueService {
     private final FiscalIdempotencyService idempotencyService;
     private final FiscalAuditService auditService;
     private final DistributedRateLimitService rateLimit;
+    private final FiscalMetricsService metrics;
 
     @Transactional
     public NotaFiscal enfileirar(Long notaId, String key, String ator, String ip) {
@@ -44,6 +45,7 @@ public class FiscalEmissionQueueService {
         jobRepository.save(new FiscalJob(nota.getEmpresaId(), notaId, op.operacaoId(), ator,
                 correlation == null ? UUID.randomUUID().toString() : correlation, 5));
         nota.setStatus(NotaFiscalStatus.PENDENTE_EMISSAO);
+        metrics.emissaoEnfileirada();
         auditService.registrar(nota.getEmpresaId(), notaId, "EMISSAO_ENFILEIRADA", ator, "ACEITA", null);
         return nota;
     }

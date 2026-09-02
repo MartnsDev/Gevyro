@@ -17,11 +17,14 @@ class FiscalJobWorkerTest {
     private FiscalAuditService audit;
     private FiscalSituationService situacao;
     private FiscalJobWorker worker;
+    private FiscalMetricsService metrics;
 
     @BeforeEach void setup() {
         coordinator = mock(FiscalJobCoordinator.class); notas = mock(NotaFiscalServiceImpl.class);
         audit = mock(FiscalAuditService.class); situacao = mock(FiscalSituationService.class);
-        worker = new FiscalJobWorker(mock(FiscalJobRepository.class), coordinator, notas, audit, situacao);
+        metrics = mock(FiscalMetricsService.class);
+        when(metrics.iniciarAutorizacao()).thenReturn(mock(io.micrometer.core.instrument.Timer.Sample.class));
+        worker = new FiscalJobWorker(mock(FiscalJobRepository.class), coordinator, notas, audit, situacao, metrics);
     }
 
     @Test
@@ -32,6 +35,7 @@ class FiscalJobWorkerTest {
         worker.executar(job);
 
         verify(coordinator).agendarConsulta(eq(9L), any(Instant.class), eq("ApiException"));
+        verify(metrics).retryAgendado();
         verify(coordinator, never()).falhar(anyLong(), anyString(), anyBoolean());
         verifyNoInteractions(situacao);
     }

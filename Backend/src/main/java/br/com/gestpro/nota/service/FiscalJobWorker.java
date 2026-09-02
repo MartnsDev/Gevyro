@@ -20,6 +20,7 @@ public class FiscalJobWorker {
     private final NotaFiscalServiceImpl notaService;
     private final FiscalAuditService auditService;
     private final FiscalSituationService situationService;
+    private final FiscalMetricsService metrics;
 
     @Scheduled(fixedDelayString = "${fiscal.jobs.poll-delay-ms:1000}")
     public void processar() {
@@ -35,17 +36,25 @@ public class FiscalJobWorker {
             if (job.tipo() == br.com.gestpro.nota.model.FiscalJob.Tipo.CONSULTA_SITUACAO) {
                 executarConsulta(job);
             } else {
+                var inicio = metrics.iniciarAutorizacao();
                 auditService.registrar(job.empresaId(), job.documentoId(), "EMISSAO_INICIADA", job.ator(), "PROCESSANDO",
                         "tentativa=" + job.tentativa());
-                NotaFiscal nota = notaService.emitir(job.documentoId());
-                coordinator.concluir(job.id());
-                auditService.registrar(job.empresaId(), job.documentoId(), "EMISSAO_FINALIZADA", job.ator(),
-                        nota.getStatus().name(), nota.getProtocolo() == null ? null : "protocolo=" + nota.getProtocolo());
+                try {
+                    NotaFiscal nota = notaService.emitir(job.documentoId());
+                    metrics.concluirAutorizacao(inicio, nota.getStatus());
+                    coordinator.concluir(job.id());
+                    auditService.registrar(job.empresaId(), job.documentoId(), "EMISSAO_FINALIZADA", job.ator(),
+                            nota.getStatus().name(), nota.getProtocolo() == null ? null : "protocolo=" + nota.getProtocolo());
+                } catch (RuntimeException erro) {
+                    metrics.falhaTecnica(inicio);
+                    throw erro;
+                }
             }
         } catch (RuntimeException erro) {
             boolean desconhecido = !(erro instanceof ApiException api) || api.getStatus().is5xxServerError();
             if (desconhecido && job.tentativa() < job.maxTentativas()) {
                 coordinator.agendarConsulta(job.id(), proximaTentativa(job.tentativa()), erro.getClass().getSimpleName());
+                metrics.retryAgendado();
                 auditService.registrar(job.empresaId(), job.documentoId(), "CONSULTA_SITUACAO_AGENDADA", job.ator(),
                         "AGUARDANDO", "tentativa=" + job.tentativa());
                 return;
@@ -76,6 +85,7 @@ public class FiscalJobWorker {
         Instant limite = Instant.now().minus(Duration.ofMinutes(10));
         for (Long id : repository.findTravados(limite, PageRequest.of(0, 10))) {
             coordinator.recuperarInterrompido(id).ifPresent(job -> {
+                metrics.jobRecuperado();
                 auditService.registrar(job.empresaId(), job.documentoId(), "EMISSAO_RECUPERADA", job.ator(),
                         job.autorizado() ? "AUTORIZADA" : "AGUARDANDO_CONSULTA",
                         job.autorizado() ? "sucesso confirmado na base local" : "consulta fiscal agendada");

@@ -21,6 +21,7 @@ class FiscalEmissionQueueServiceTest {
     private FiscalAuditService audit;
     private DistributedRateLimitService rateLimit;
     private FiscalEmissionQueueService service;
+    private FiscalMetricsService metrics;
     private NotaFiscal nota;
 
     @BeforeEach
@@ -30,7 +31,8 @@ class FiscalEmissionQueueServiceTest {
         idempotency = mock(FiscalIdempotencyService.class);
         audit = mock(FiscalAuditService.class);
         rateLimit = mock(DistributedRateLimitService.class);
-        service = new FiscalEmissionQueueService(notas, jobs, idempotency, audit, rateLimit);
+        metrics = mock(FiscalMetricsService.class);
+        service = new FiscalEmissionQueueService(notas, jobs, idempotency, audit, rateLimit, metrics);
         nota = NotaFiscal.builder().id(7L).empresaId(3L).status(NotaFiscalStatus.DIGITACAO).build();
         when(notas.findByIdForUpdate(7L)).thenReturn(Optional.of(nota));
     }
@@ -49,6 +51,7 @@ class FiscalEmissionQueueServiceTest {
         assertThat(captor.getValue().getDocumentoId()).isEqualTo(7L);
         assertThat(captor.getValue().getIdempotenciaId()).isEqualTo(11L);
         verify(audit).registrar(3L, 7L, "EMISSAO_ENFILEIRADA", "dono@empresa.com", "ACEITA", null);
+        verify(metrics).emissaoEnfileirada();
     }
 
     @Test
