@@ -48,6 +48,22 @@ type ConfiguracaoFiscal = {
   serieNfe: string; serieNfce: string; cscId: string; cscConfigurado: boolean;
   fiscalHabilitado: boolean; nfeHabilitada: boolean; nfceHabilitada: boolean; nfseHabilitada: boolean;
 };
+type ItemRascunho = {
+  id: number; descricao: string; ncm: string; cfop: string; unidade: string;
+  quantidade: number; valorUnitario: number; valorDesconto: number; csosn: string;
+};
+type RascunhoLocal = {
+  versao: 1; salvoEm: number; tipoNota: TipoNota; naturezaOp: string; formaPagamento: string;
+  clienteDoc: string; clienteNome: string; infoAdicionais: string; itens: ItemRascunho[];
+};
+
+const RASCUNHO_TTL_MS = 2 * 60 * 60 * 1000;
+const chaveRascunho = (empresaId: number) => `gevyro:fiscal:rascunho:v1:${empresaId}`;
+const textoSeguro = (valor: unknown, limite: number) => typeof valor === "string" ? valor.slice(0, limite) : "";
+const numeroSeguro = (valor: unknown, padrao = 0) => {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : padrao;
+};
 
 const fmt = (v?: number | null) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 const fmtDate = (s?: string) => s ? new Date(s).toLocaleString("pt-BR") : "—";
@@ -139,8 +155,10 @@ export default function NotaFiscalPage() {
   const [clienteDoc, setClienteDoc] = useState("");
   const [clienteNome, setClienteNome] = useState("");
   const [infoAdicionais, setInfoAdicionais] = useState("");
-  const [itens, setItens] = useState<any[]>([]);
+  const [itens, setItens] = useState<ItemRascunho[]>([]);
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [rascunhoPronto, setRascunhoPronto] = useState(false);
+  const [rascunhoSalvoEm, setRascunhoSalvoEm] = useState<number | null>(null);
 
   const [arquivoCert, setArquivoCert] = useState<File | null>(null);
   const [senhaCert, setSenhaCert] = useState("");
@@ -252,6 +270,61 @@ export default function NotaFiscalPage() {
     setConfigFiscal(null); setCscNovo(""); setConfirmarProducao(false);
     if (EMPRESA_ID) carregarConfiguracao();
   }, [EMPRESA_ID, carregarConfiguracao]);
+
+  useEffect(() => {
+    setRascunhoPronto(false);
+    setTipoNota("NFE"); setNaturezaOp("Venda de Mercadoria"); setFormaPagamento("PIX");
+    setClienteDoc(""); setClienteNome(""); setInfoAdicionais(""); setItens([]); setRascunhoSalvoEm(null);
+    if (!EMPRESA_ID) return;
+    try {
+      const armazenado = sessionStorage.getItem(chaveRascunho(EMPRESA_ID));
+      if (armazenado) {
+        const bruto = JSON.parse(armazenado) as Partial<RascunhoLocal>;
+        const agora = Date.now();
+        if (bruto.versao === 1 && typeof bruto.salvoEm === "number" && Number.isFinite(bruto.salvoEm)
+          && bruto.salvoEm <= agora && agora - bruto.salvoEm <= RASCUNHO_TTL_MS) {
+          const tipo = bruto.tipoNota === "NFCE" ? "NFCE" : "NFE";
+          const itensValidos = Array.isArray(bruto.itens) ? bruto.itens.slice(0, 100).map((item, indice) => ({
+            id: numeroSeguro(item?.id, Date.now() + indice), descricao: textoSeguro(item?.descricao, 200),
+            ncm: textoSeguro(item?.ncm, 8).replace(/\D/g, ""), cfop: textoSeguro(item?.cfop, 4).replace(/\D/g, ""),
+            unidade: textoSeguro(item?.unidade, 6) || "UN", quantidade: numeroSeguro(item?.quantidade, 1),
+            valorUnitario: numeroSeguro(item?.valorUnitario), valorDesconto: numeroSeguro(item?.valorDesconto),
+            csosn: textoSeguro(item?.csosn, 4) || "102"
+          })) : [];
+          setTipoNota(tipo); setNaturezaOp(textoSeguro(bruto.naturezaOp, 100));
+          setFormaPagamento(textoSeguro(bruto.formaPagamento, 30) || "PIX");
+          setClienteDoc(textoSeguro(bruto.clienteDoc, 18)); setClienteNome(textoSeguro(bruto.clienteNome, 200));
+          setInfoAdicionais(textoSeguro(bruto.infoAdicionais, 2000)); setItens(itensValidos);
+          setRascunhoSalvoEm(bruto.salvoEm);
+        } else {
+          sessionStorage.removeItem(chaveRascunho(EMPRESA_ID));
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(chaveRascunho(EMPRESA_ID));
+    } finally {
+      setRascunhoPronto(true);
+    }
+  }, [EMPRESA_ID]);
+
+  useEffect(() => {
+    if (!EMPRESA_ID || !rascunhoPronto) return;
+    const timeout = window.setTimeout(() => {
+      const vazio = !clienteDoc && !clienteNome && !infoAdicionais && itens.length === 0
+        && naturezaOp === "Venda de Mercadoria" && formaPagamento === "PIX" && tipoNota === "NFE";
+      if (vazio) {
+        sessionStorage.removeItem(chaveRascunho(EMPRESA_ID));
+        setRascunhoSalvoEm(null);
+        return;
+      }
+      const salvoEm = Date.now();
+      const rascunho: RascunhoLocal = { versao: 1, salvoEm, tipoNota, naturezaOp, formaPagamento,
+        clienteDoc, clienteNome, infoAdicionais, itens };
+      sessionStorage.setItem(chaveRascunho(EMPRESA_ID), JSON.stringify(rascunho));
+      setRascunhoSalvoEm(salvoEm);
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [EMPRESA_ID, rascunhoPronto, tipoNota, naturezaOp, formaPagamento, clienteDoc, clienteNome, infoAdicionais, itens]);
 
   const salvarConfiguracao = async () => {
     if (!EMPRESA_ID || !configFiscal) return;
@@ -375,9 +448,11 @@ export default function NotaFiscalPage() {
       const status=resEmitir?.dados?.status||resEmitir?.status;
       if (status === "AUTORIZADA" || status === "CONTINGENCIA") {
         sessionStorage.removeItem(storageKey);
+        sessionStorage.removeItem(chaveRascunho(EMPRESA_ID)); setRascunhoSalvoEm(null);
         toast.success(status==="AUTORIZADA"?"Nota autorizada com sucesso!":"Nota salva em contingência para transmissão posterior.");
         setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
       } else if (status === "PENDENTE_EMISSAO" || status === "PROCESSANDO" || status === "VALIDANDO") {
+        sessionStorage.removeItem(chaveRascunho(EMPRESA_ID)); setRascunhoSalvoEm(null);
         toast.success("Nota recebida e enfileirada para emissão fiscal.");
         setAba("historico"); setItens([]); setClienteNome(""); setClienteDoc(""); setInfoAdicionais("");
       } else {
@@ -621,6 +696,9 @@ export default function NotaFiscalPage() {
         {/* ABA: EMITIR NOVA NOTA */}
         {aba === "emitir" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {rascunhoSalvoEm && <div role="status" style={{ alignSelf: "flex-end", color: theme.textMuted, fontSize: 11 }}>
+              Rascunho temporário salvo neste navegador às {new Date(rascunhoSalvoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </div>}
             <div>
               <SectionTitle>Selecione o Modelo</SectionTitle>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
