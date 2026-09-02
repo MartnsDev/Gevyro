@@ -46,4 +46,22 @@ class CertificateServiceTest {
         assertThat(resumo).containsEntry("expiraEmBreve", "true").containsEntry("expirado", "false");
         assertThat(resumo).doesNotContainKeys("arquivo", "senha", "arquivoCifrado", "senhaCifrada");
     }
+
+    @Test void excluiCertificadoEApagaBuffersDaEntidade() {
+        byte[] arquivo = {1, 2, 3}; byte[] arquivoNonce = {4, 5};
+        byte[] senha = {6, 7}; byte[] senhaNonce = {8, 9};
+        CertificadoDigital certificado = mock(CertificadoDigital.class);
+        when(certificado.getArquivoCifrado()).thenReturn(arquivo);
+        when(certificado.getArquivoNonce()).thenReturn(arquivoNonce);
+        when(certificado.getSenhaCifrada()).thenReturn(senha);
+        when(certificado.getSenhaNonce()).thenReturn(senhaNonce);
+        CertificadoDigitalRepository repository = mock(CertificadoDigitalRepository.class);
+        when(repository.findByEmpresaId(1L)).thenReturn(Optional.of(certificado));
+
+        new CertificateService(repository, mock(FiscalEncryptionService.class)).excluir(1L);
+
+        verify(repository).delete(certificado); verify(repository).flush();
+        assertThat(arquivo).containsOnly(0); assertThat(arquivoNonce).containsOnly(0);
+        assertThat(senha).containsOnly(0); assertThat(senhaNonce).containsOnly(0);
+    }
 }

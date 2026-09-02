@@ -256,6 +256,17 @@ public class NotaFiscalController {
         return ResponseEntity.ok(ApiResponse.ok(certificateService.consultar(empresaId)));
     }
 
+    @DeleteMapping("/certificado/{empresaId}")
+    public ResponseEntity<ApiResponse<Void>> excluirCertificado(
+            @PathVariable Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
+                auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
+        certificateService.excluir(empresaId);
+        fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_EXCLUIDO", auth.getName(), "SUCESSO", null);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
     @PostMapping("/certificado/{empresaId}")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadCertificado(
             @PathVariable Long empresaId,

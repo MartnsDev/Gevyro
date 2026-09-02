@@ -599,6 +599,21 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); } finally { setSalvandoCert(false); }
   };
 
+  const handleExcluirCertificado = async () => {
+    if (!EMPRESA_ID || !certInfo) return;
+    const confirmacao = window.prompt("Esta ação bloqueará novas assinaturas fiscais. Digite EXCLUIR CERTIFICADO para confirmar:");
+    if (confirmacao !== "EXCLUIR CERTIFICADO") {
+      if (confirmacao !== null) setErroApi("Confirmação incorreta. O certificado não foi excluído.");
+      return;
+    }
+    try {
+      await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`, { method: "DELETE" });
+      setCertInfo(null); setArquivoCert(null); setSenhaCert("");
+      await carregarProntidao();
+      toast.success("Certificado excluído. Novas emissões permanecerão bloqueadas até configurar outro A1.");
+    } catch (e: any) { setErroApi(e.message); }
+  };
+
   const totalNota = itens.reduce((acc, i) => acc + ((i.quantidade * i.valorUnitario) - i.valorDesconto), 0);
   const adicionarItem = () => setItens([...itens, { id: Date.now(), descricao: "", ncm: "", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 0, valorDesconto: 0, csosn: "102" }]);
   const validarPassoEmissao = () => {
@@ -1002,6 +1017,7 @@ export default function NotaFiscalPage() {
                   <p style={{ margin: "0 0 4px", color: theme.textMain }}><strong>Titular:</strong> {certInfo.titular}</p>
                   <p style={{ margin: "0 0 4px", color: theme.textMain }}><strong>Emissor:</strong> {certInfo.emissor}</p>
                   <p style={{ margin: 0, color: theme.textMain }}><strong>Validade:</strong> {fmtDate(certInfo.validoDe)} até {fmtDate(certInfo.validoAte)} ({certInfo.diasParaExpirar} dias)</p>
+                  <button type="button" onClick={handleExcluirCertificado} style={{ ...btnStyle, marginTop: 14, color: theme.danger, borderColor: theme.danger }}><Trash2 size={14}/> Excluir certificado</button>
                 </div>
               )}
            </Card>

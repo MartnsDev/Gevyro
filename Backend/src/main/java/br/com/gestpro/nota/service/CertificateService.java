@@ -55,6 +55,20 @@ public class CertificateService {
         return repository.findByEmpresaId(empresaId).map(this::resumo).orElse(Map.of());
     }
 
+    @Transactional
+    public void excluir(Long empresaId) {
+        CertificadoDigital entity = repository.findByEmpresaId(empresaId).orElseThrow(() ->
+                new ApiException("Certificado digital A1 não configurado.", HttpStatus.NOT_FOUND,
+                        "/api/nota-fiscal/certificado"));
+        try {
+            repository.delete(entity);
+            repository.flush();
+        } finally {
+            apagar(entity.getArquivoCifrado()); apagar(entity.getArquivoNonce());
+            apagar(entity.getSenhaCifrada()); apagar(entity.getSenhaNonce());
+        }
+    }
+
     private X509Certificate validar(byte[] pfx, String senha) {
         char[] segredo = senha.toCharArray();
         try {
@@ -85,6 +99,8 @@ public class CertificateService {
         result.put("expirado", Boolean.toString(entity.getValidoAte().isBefore(Instant.now())));
         return result;
     }
+
+    private void apagar(byte[] bytes) { if (bytes != null) Arrays.fill(bytes, (byte) 0); }
 
     public record Material(byte[] arquivo, String senha) implements AutoCloseable {
         @Override public void close() { Arrays.fill(arquivo, (byte) 0); }
