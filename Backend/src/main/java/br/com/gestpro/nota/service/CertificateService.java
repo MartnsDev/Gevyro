@@ -11,15 +11,23 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Service @RequiredArgsConstructor
 public class CertificateService {
+    public static final int MAX_PFX_BYTES = 1024 * 1024;
+    static final int MAX_PASSWORD_CHARS = 512;
     private final CertificadoDigitalRepository repository;
     private final FiscalEncryptionService encryption;
 
     @Transactional
     public Map<String, String> salvar(Long empresaId, byte[] pfx, String senha) {
+        if (empresaId == null || pfx == null || pfx.length == 0 || pfx.length > MAX_PFX_BYTES)
+            throw new ApiException("Certificado A1 deve possuir no máximo 1 MiB.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/certificado");
+        if (senha == null || senha.isEmpty() || senha.length() > MAX_PASSWORD_CHARS)
+            throw new ApiException("Senha do certificado ausente ou excessiva.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal/certificado");
         X509Certificate certificate = validar(pfx, senha);
         var arquivo = encryption.encrypt(pfx);
         var segredo = encryption.encrypt(senha.getBytes(StandardCharsets.UTF_8));
@@ -48,17 +56,22 @@ public class CertificateService {
     }
 
     private X509Certificate validar(byte[] pfx, String senha) {
+        char[] segredo = senha.toCharArray();
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            try (var input = new ByteArrayInputStream(pfx)) { keyStore.load(input, senha.toCharArray()); }
-            String alias = keyStore.aliases().nextElement();
+            try (var input = new ByteArrayInputStream(pfx)) { keyStore.load(input, segredo); }
+            List<String> chaves = new ArrayList<>();
+            for (String candidato : Collections.list(keyStore.aliases()))
+                if (keyStore.isKeyEntry(candidato)) chaves.add(candidato);
+            if (chaves.size() != 1) throw new IllegalArgumentException("PKCS#12 deve possuir uma única chave privada.");
+            String alias = chaves.get(0);
             X509Certificate certificate = (X509Certificate) keyStore.getCertificate(alias);
             certificate.checkValidity();
-            if (!keyStore.isKeyEntry(alias)) throw new IllegalArgumentException("Certificado sem chave privada.");
+            if (keyStore.getKey(alias, segredo) == null) throw new IllegalArgumentException("Certificado sem chave privada.");
             return certificate;
         } catch (Exception e) {
             throw new ApiException("Certificado inválido, expirado ou com senha incorreta.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/certificado");
-        }
+        } finally { Arrays.fill(segredo, '\0'); }
     }
 
     private Map<String, String> resumo(CertificadoDigital entity) {
@@ -66,6 +79,10 @@ public class CertificateService {
         result.put("titular", entity.getTitular()); result.put("emissor", entity.getEmissor());
         result.put("serialNumber", entity.getNumeroSerie()); result.put("validoDe", entity.getValidoDe().toString());
         result.put("validoAte", entity.getValidoAte().toString()); result.put("configurado", "true");
+        long dias = Math.max(0, Duration.between(Instant.now(), entity.getValidoAte()).toDays());
+        result.put("diasParaExpirar", Long.toString(dias));
+        result.put("expiraEmBreve", Boolean.toString(dias <= 30));
+        result.put("expirado", Boolean.toString(entity.getValidoAte().isBefore(Instant.now())));
         return result;
     }
 

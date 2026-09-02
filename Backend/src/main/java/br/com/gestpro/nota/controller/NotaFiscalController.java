@@ -232,10 +232,14 @@ public class NotaFiscalController {
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
         try {
+            if (arquivo == null || arquivo.isEmpty() || arquivo.getSize() > br.com.gestpro.nota.service.CertificateService.MAX_PFX_BYTES)
+                return ResponseEntity.badRequest().body(ApiResponse.erro("Certificado A1 deve possuir no máximo 1 MiB."));
             byte[] pfxBytes = arquivo.getBytes();
-            Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
-            fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
-            return ResponseEntity.ok(ApiResponse.ok(info));
+            try {
+                Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
+                fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
+                return ResponseEntity.ok(ApiResponse.ok(info));
+            } finally { java.util.Arrays.fill(pfxBytes, (byte) 0); }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
         }
