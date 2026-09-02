@@ -73,6 +73,10 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             "(:status IS NULL OR n.status = :status) AND " +
             "(:tipo IS NULL OR n.tipo = :tipo) AND " +
             "(:clienteNome IS NULL OR LOWER(n.clienteNome) LIKE LOWER(CONCAT('%', :clienteNome, '%'))) AND " +
+            "(:numero IS NULL OR n.numeroNota = :numero) AND " +
+            "(:serie IS NULL OR n.serie = :serie) AND " +
+            "(:valorMin IS NULL OR n.valorTotal >= :valorMin) AND " +
+            "(:valorMax IS NULL OR n.valorTotal <= :valorMax) AND " +
             "(:inicio IS NULL OR n.createdAt >= :inicio) AND " +
             "(:fim IS NULL OR n.createdAt <= :fim)")
     Page<NotaFiscal> findWithFilters(
@@ -80,6 +84,10 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             NotaFiscalStatus status,
             TipoNota tipo,
             String clienteNome,
+            Long numero,
+            String serie,
+            BigDecimal valorMin,
+            BigDecimal valorMax,
             LocalDateTime inicio,
             LocalDateTime fim,
             Pageable pageable);

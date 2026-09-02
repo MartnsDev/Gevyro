@@ -228,7 +228,11 @@ export default function NotaFiscalPage() {
     try {
       const params = new URLSearchParams({ empresaId: String(EMPRESA_ID), page: String(paginaAtual) });
       if (filtroStatus !== "TODOS") params.append("status", filtroStatus);
-      if (filtroBusca) params.append("clienteNome", filtroBusca);
+      if (filtroBusca) {
+        const busca = filtroBusca.trim();
+        if (/^\\d{1,9}$/.test(busca)) params.append("numero", String(Number(busca)));
+        else params.append("clienteNome", busca);
+      }
 
       const json = await fetchSeguro(`${API_BASE}?${params.toString()}`);
       if (json?.sucesso) {
@@ -407,7 +411,7 @@ export default function NotaFiscalPage() {
 
   const totalNota = itens.reduce((acc, i) => acc + ((i.quantidade * i.valorUnitario) - i.valorDesconto), 0);
   const adicionarItem = () => setItens([...itens, { id: Date.now(), descricao: "", ncm: "", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 0, valorDesconto: 0, csosn: "102" }]);
-  const notasFiltradas = notas.filter(n => filtroBusca === "" || (n.clienteNome && n.clienteNome.toLowerCase().includes(filtroBusca.toLowerCase())) || (n.numeroNota && String(n.numeroNota).includes(filtroBusca)) );
+  const notasFiltradas = notas;
 
   if (!EMPRESA_ID) {
     return (

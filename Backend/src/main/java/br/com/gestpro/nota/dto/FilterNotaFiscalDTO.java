@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 
 /**
  * Objeto de transporte para filtros de pesquisa e paginação.
@@ -22,6 +23,10 @@ public class FilterNotaFiscalDTO {
     private NotaFiscalStatus status;
     private TipoNota tipo;
     private String clienteNome;
+    private Long numero;
+    private String serie;
+    private BigDecimal valorMin;
+    private BigDecimal valorMax;
 
     // Filtros de Período (Formato esperado: yyyy-MM-dd)
     private String dataInicio;

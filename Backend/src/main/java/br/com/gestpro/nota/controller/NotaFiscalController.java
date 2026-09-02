@@ -28,6 +28,7 @@ public class NotaFiscalController {
     private final br.com.gestpro.nota.service.FiscalEmissionQueueService fiscalEmissionQueueService;
     private final DistributedRateLimitService rateLimit;
     private final br.com.gestpro.nota.service.NfeXmlImportService nfeXmlImportService;
+    private final br.com.gestpro.nota.service.validacoes.Listar listarNotas;
 
     // CRUD
 
@@ -62,13 +63,11 @@ public class NotaFiscalController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<NotaFiscalResumoResponse>>> listar(
-            @RequestParam Long empresaId,
-            @RequestParam(required = false) NotaFiscalStatus status, Authentication auth, HttpServletRequest httpRequest
-    ) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
-        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal");
-        return ResponseEntity.ok(ApiResponse.ok(notaFiscalService.listar(empresaId, status)));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> listar(
+            @ModelAttribute FilterNotaFiscalDTO filtro, Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(filtro.getEmpresaId(), auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, filtro.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal");
+        return ResponseEntity.ok(ApiResponse.ok(listarNotas.listar(filtro)));
     }
 
     @DeleteMapping("/{id}")
