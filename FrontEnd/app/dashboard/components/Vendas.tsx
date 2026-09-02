@@ -332,7 +332,33 @@ function TelaVendaSucesso({
   onFechar: () => void;
 }) {
   const [passo, setPasso] = useState<"sucesso" | "nota">("sucesso");
+  const [emitindoNfce, setEmitindoNfce] = useState(false);
+  const [nfceEnfileirada, setNfceEnfileirada] = useState(false);
   const misto = venda.formaPagamento2 && venda.valorPagamento2;
+
+  const emitirNfceDaVenda = async () => {
+    if (!window.confirm(`Emitir NFC-e fiscal da venda #${venda.id}? A operação usará os dados fiscais cadastrados e poderá ter validade jurídica em produção.`)) return;
+    setEmitindoNfce(true);
+    try {
+      const criada = await apiFetchAuthJson<{ dados?: { id?: number; status?: string } }>(`/api/nota-fiscal/vendas/${venda.id}/nfce`, { method: "POST" });
+      const notaId = criada?.dados?.id;
+      if (!notaId) throw new Error("A NFC-e foi criada, mas o identificador fiscal não foi retornado.");
+      const storageKey = `gevyro:fiscal:idempotency:venda:${venda.id}:nfce`;
+      const idempotencyKey = sessionStorage.getItem(storageKey) || crypto.randomUUID();
+      sessionStorage.setItem(storageKey, idempotencyKey);
+      const emissao = await apiFetchAuthJson<{ dados?: { status?: string } }>(`/api/nota-fiscal/${notaId}/emitir`, {
+        method: "POST", headers: { "Idempotency-Key": idempotencyKey }
+      });
+      const status = emissao?.dados?.status;
+      if (!["PENDENTE_EMISSAO", "PROCESSANDO", "VALIDANDO", "AUTORIZADA", "CONTINGENCIA"].includes(status ?? ""))
+        throw new Error(`A NFC-e não entrou na fila fiscal${status ? ` (status ${status})` : ""}.`);
+      if (status === "AUTORIZADA") sessionStorage.removeItem(storageKey);
+      setNfceEnfileirada(true);
+      toast.success(status === "AUTORIZADA" ? "NFC-e autorizada." : "NFC-e vinculada à venda e enviada para processamento.");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível emitir a NFC-e desta venda.");
+    } finally { setEmitindoNfce(false); }
+  };
 
   // Auto-fecha após 5s apenas no passo de sucesso
   useEffect(() => {
@@ -402,7 +428,16 @@ function TelaVendaSucesso({
             Imprimir cupom não fiscal da venda{" "}
             <strong style={{ color: "var(--foreground)" }}>#{venda.id}</strong>
           </p>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button onClick={emitirNfceDaVenda} disabled={emitindoNfce || nfceEnfileirada} style={{
+              padding: "11px 0", background: nfceEnfileirada ? "var(--primary-muted)" : "var(--primary)", border: "none",
+              borderRadius: 10, color: nfceEnfileirada ? "var(--primary)" : "#fff", fontSize: 14, fontWeight: 700,
+              cursor: emitindoNfce || nfceEnfileirada ? "not-allowed" : "pointer", opacity: emitindoNfce ? .65 : 1,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+            }}>
+              {emitindoNfce ? "Enviando para processamento..." : nfceEnfileirada ? <><CheckCircle2 size={16}/> NFC-e em processamento</> : <><Receipt size={16}/> Emitir NFC-e da venda</>}
+            </button>
+            <div style={{ display: "flex", gap: 10 }}>
             <button
               onClick={onFechar}
               style={{
@@ -442,6 +477,7 @@ function TelaVendaSucesso({
             >
               <Receipt size={16} /> Sim, imprimir
             </button>
+            </div>
           </div>
         </div>
       </div>
