@@ -197,9 +197,9 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     @Override
     public void excluir(Long id) {
         NotaFiscal nota = buscarPorId(id);
-        if (nota.getStatus() != NotaFiscalStatus.DIGITACAO && nota.getStatus() != NotaFiscalStatus.REJEITADA) {
+        if (nota.getStatus() != NotaFiscalStatus.DIGITACAO) {
             throw new ApiException(
-                    "Apenas rascunhos (em digitação) ou notas rejeitadas podem ser excluídas. Se a nota foi autorizada, use o Cancelamento.",
+                    "Apenas rascunhos em digitação podem ser excluídos. Tentativas fiscais e documentos autorizados devem ser preservados; para nota autorizada, use o cancelamento.",
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "/api/nota-fiscal"
             );

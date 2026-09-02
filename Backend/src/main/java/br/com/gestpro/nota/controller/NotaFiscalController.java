@@ -74,7 +74,9 @@ public class NotaFiscalController {
     public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable Long id, Authentication auth) {
         try {
             notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
+            NotaFiscal nota = notaFiscalService.buscarPorId(id);
             notaFiscalService.excluir(id);
+            fiscalAuditService.registrar(nota.getEmpresaId(), id, "RASCUNHO_EXCLUIDO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.ok(ApiResponse.ok(null));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));

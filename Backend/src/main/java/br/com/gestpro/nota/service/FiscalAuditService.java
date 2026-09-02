@@ -18,6 +18,7 @@ public class FiscalAuditService {
     private static final String GENESIS = "0".repeat(64);
     private final FiscalAuditStore store;
     private final NotaFiscalConfig.NotaFiscalProperties properties;
+    private final FiscalSensitiveDataRedactor redactor;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrar(Long empresaId, Long documentoId, String acao, String ator,
@@ -28,8 +29,7 @@ public class FiscalAuditService {
         String correlation = MDC.get("correlationId");
         if (correlation == null) correlation = "system-" + agora.toEpochMilli();
         String ambiente = properties.isHomologacao() ? "HOMOLOGACAO" : "PRODUCAO";
-        String detalhesLimpos = detalhes == null ? null : detalhes.replaceAll("[\\r\\n]", " ");
-        String detalhesSeguros = detalhesLimpos == null ? null : detalhesLimpos.substring(0, Math.min(1000, detalhesLimpos.length()));
+        String detalhesSeguros = redactor.sanitizar(detalhes);
         String canonical = String.join("|", anterior, String.valueOf(empresaId), String.valueOf(documentoId),
                 acao, ator, ambiente, resultado, String.valueOf(detalhesSeguros), correlation, agora.toString());
         store.adicionar(new FiscalAuditLog(empresaId, documentoId, acao, ator, ambiente, resultado,
