@@ -15,6 +15,7 @@ import java.util.List;
 public interface NotaFiscalInterface {
 
     NotaFiscal criar(CriarNotaRequest request);
+    NotaFiscal criarNfceDaVenda(Long vendaId, String ator);
     NotaFiscal buscarPorId(Long id);
     List<NotaFiscalResumoResponse> listar(Long empresaId, NotaFiscalStatus status);
     void excluir(Long id);

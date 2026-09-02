@@ -12,6 +12,9 @@ import br.com.gestpro.nota.repository.ItemNotaFiscalRepository;
 import br.com.gestpro.nota.repository.NotaFiscalRepository;
 import br.com.gestpro.nota.repository.ConfiguracaoFiscalEmpresaRepository;
 import br.com.gestpro.nota.repository.EventoFiscalRepository;
+import br.com.gestpro.venda.repository.VendaRepository;
+import br.com.gestpro.produto.service.ProdutoFiscalService;
+import br.com.gestpro.produto.dto.ProdutoFiscalResponse;
 import br.com.gestpro.nota.provider.FiscalProvider;
 import br.com.gestpro.nota.provider.FiscalProviderRegistry;
 import br.com.gestpro.nota.service.validacoes.*;
@@ -58,6 +61,8 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final DanfePdfService danfePdfService;
     private final EventoFiscalRepository eventoFiscalRepository;
     private final FiscalEncryptionService fiscalEncryptionService;
+    private final VendaRepository vendaRepository;
+    private final ProdutoFiscalService produtoFiscalService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -85,6 +90,72 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
         // O ideal seria que 'Criar' retornasse a Entidade e não o Map, mas para adaptar:
         Long notaId = (Long) ((Map<String, Object>) mapNota.get("nota")).get("id");
         return buscarPorId(notaId);
+    }
+
+    @Override
+    public NotaFiscal criarNfceDaVenda(Long vendaId, String ator) {
+        var venda = vendaRepository.findByIdForUpdate(vendaId)
+                .orElseThrow(() -> new ApiException("Venda não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/vendas"));
+        if (venda.getEmpresa() == null || venda.getEmpresa().getDono() == null
+                || !venda.getEmpresa().getDono().getEmail().equalsIgnoreCase(ator))
+            throw new ApiException("Sem permissão para emitir documento desta venda.", HttpStatus.FORBIDDEN, "/api/nota-fiscal/vendas");
+        if (Boolean.TRUE.equals(venda.getCancelada()))
+            throw new ApiException("Venda cancelada não pode originar NFC-e.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/vendas");
+        NotaFiscal existente = notaFiscalRepository.findByVendaId(vendaId).orElse(null);
+        if (existente != null) return existente;
+        if (venda.getItens() == null || venda.getItens().isEmpty())
+            throw new ApiException("Venda sem itens não pode originar NFC-e.", HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/vendas");
+
+        List<ItemCalc> itensFiscais = new ArrayList<>();
+        for (var itemVenda : venda.getItens()) {
+            var produto = itemVenda.getProduto();
+            ProdutoFiscalResponse fiscal = produtoFiscalService.vigente(produto.getId(),
+                    venda.getDataVenda() == null ? java.time.LocalDate.now() : venda.getDataVenda().toLocalDate(), ator);
+            itensFiscais.add(ItemCalc.builder().produtoId(produto.getId()).codigoProduto(String.valueOf(produto.getId()))
+                    .descricao(produto.getNome()).ncm(fiscal.ncm()).cfop(fiscal.cfopPadrao())
+                    .unidade(fiscal.unidadeComercial()).quantidade(java.math.BigDecimal.valueOf(itemVenda.getQuantidade()))
+                    .valorUnitario(itemVenda.getPrecoUnitario()).valorDesconto(java.math.BigDecimal.ZERO)
+                    .csosn(fiscal.csosn()).cstIcms(fiscal.cstIcms()).cstPis(fiscal.cstPis()).cstCofins(fiscal.cstCofins())
+                    .icmsAliquota(java.math.BigDecimal.ZERO).pisAliquota(java.math.BigDecimal.ZERO)
+                    .cofinsAliquota(java.math.BigDecimal.ZERO).build());
+        }
+        var cliente = venda.getCliente();
+        CriarNotaRequest request = CriarNotaRequest.builder().empresaId(venda.getEmpresa().getId())
+                .clienteId(cliente == null ? null : cliente.getId()).clienteNome(cliente == null ? null : cliente.getNome())
+                .clienteCpfCnpj(cliente == null ? null : (cliente.getCpf() != null ? cliente.getCpf() : cliente.getCnpj()))
+                .tipo(br.com.gestpro.nota.TipoNota.NFCE).naturezaOperacao("Venda de mercadoria")
+                .formaPagamento(mapearPagamento(venda.getFormaPagamento())).valorFrete(java.math.BigDecimal.ZERO)
+                .valorDesconto(venda.getDesconto()).informacoesAdicionais("Documento fiscal vinculado à venda " + vendaId)
+                .itens(itensFiscais).build();
+        NotaFiscal nota = criar(request);
+        nota.setVendaId(vendaId);
+        nota.setCaixaId(venda.getCaixa().getId());
+        notaFiscalRepository.save(nota);
+        auditService.registrar(nota.getEmpresaId(), nota.getId(), "NFCE_CRIADA_DA_VENDA", ator, "SUCESSO", "vendaId=" + vendaId);
+        return nota;
+    }
+
+    @Transactional(readOnly = true)
+    public Long validarAcessoVendaFiscal(Long vendaId, String ator) {
+        var venda = vendaRepository.findById(vendaId)
+                .orElseThrow(() -> new ApiException("Venda não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/vendas"));
+        if (venda.getEmpresa() == null || venda.getEmpresa().getDono() == null
+                || !venda.getEmpresa().getDono().getEmail().equalsIgnoreCase(ator))
+            throw new ApiException("Sem permissão para emitir documento desta venda.", HttpStatus.FORBIDDEN, "/api/nota-fiscal/vendas");
+        return venda.getEmpresa().getId();
+    }
+
+    private br.com.gestpro.nota.FormaPagamento mapearPagamento(br.com.gestpro.caixa.FormaDePagamento pagamento) {
+        if (pagamento == null) return br.com.gestpro.nota.FormaPagamento.OUTROS;
+        return switch (pagamento) {
+            case DINHEIRO -> br.com.gestpro.nota.FormaPagamento.DINHEIRO;
+            case PIX -> br.com.gestpro.nota.FormaPagamento.PIX;
+            case CARTAO_DEBITO -> br.com.gestpro.nota.FormaPagamento.CARTAO_DEBITO;
+            case CARTAO_CREDITO -> br.com.gestpro.nota.FormaPagamento.CARTAO_CREDITO;
+            case BOLETO -> br.com.gestpro.nota.FormaPagamento.BOLETO;
+            case TRANSFERENCIA -> br.com.gestpro.nota.FormaPagamento.TRANSFERENCIA;
+            case OUTRO -> br.com.gestpro.nota.FormaPagamento.OUTROS;
+        };
     }
 
     @Override

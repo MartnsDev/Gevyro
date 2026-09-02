@@ -42,6 +42,16 @@ public class NotaFiscalController {
         }
     }
 
+    @PostMapping("/vendas/{vendaId}/nfce")
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> criarNfceDaVenda(
+            @PathVariable Long vendaId, Authentication auth, HttpServletRequest httpRequest) {
+        Long empresaId = notaFiscalServiceImpl.validarAcessoVendaFiscal(vendaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, empresaId, auth, httpRequest,
+                "/api/nota-fiscal/vendas/nfce");
+        NotaFiscal nota = notaFiscalService.criarNfceDaVenda(vendaId, auth.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> buscarPorId(@PathVariable Long id, Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());

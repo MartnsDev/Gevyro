@@ -36,6 +36,12 @@ public class NotaFiscal {
     @Column(name = "cliente_id")
     private Long clienteId;
 
+    @Column(name = "venda_id", unique = true)
+    private Long vendaId;
+
+    @Column(name = "caixa_id")
+    private Long caixaId;
+
     @Column(name = "cliente_nome", length = 200)
     private String clienteNome;
 

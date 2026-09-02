@@ -11,9 +11,16 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 @Repository
 public interface VendaRepository extends JpaRepository<Venda, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select v from Venda v where v.id = :id")
+    Optional<Venda> findByIdForUpdate(@Param("id") Long id);
 
     // MÉTODOS AUTOMÁTICOS
     List<Venda> findByCaixaId(Long idCaixa);
@@ -45,7 +52,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
                                              @Param("fim") LocalDateTime fim,
                                              @Param("email") String email);
 }
-
 
 
 

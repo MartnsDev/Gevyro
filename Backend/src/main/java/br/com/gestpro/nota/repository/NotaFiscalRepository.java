@@ -28,6 +28,7 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
     List<NotaFiscal> findByEmpresaIdAndTipoOrderByDataEmissaoDesc(Long empresaId, TipoNota tipo);
 
     Optional<NotaFiscal> findByChaveAcesso(String chaveAcesso);
+    Optional<NotaFiscal> findByVendaId(Long vendaId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select n from NotaFiscal n where n.id = :id")
