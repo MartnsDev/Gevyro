@@ -27,6 +27,7 @@ public class NotaFiscalController {
     private final br.com.gestpro.nota.service.FiscalAuditService fiscalAuditService;
     private final br.com.gestpro.nota.service.FiscalEmissionQueueService fiscalEmissionQueueService;
     private final DistributedRateLimitService rateLimit;
+    private final br.com.gestpro.nota.service.NfeXmlImportService nfeXmlImportService;
 
     // CRUD
 
@@ -143,6 +144,28 @@ public class NotaFiscalController {
     }
 
     // DOWNLOADS
+
+    @PostMapping(value = "/importar-xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> importarXml(
+            @RequestParam Long empresaId, @RequestParam("arquivo") MultipartFile arquivo,
+            Authentication auth, HttpServletRequest httpRequest) throws java.io.IOException {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest,
+                "/api/nota-fiscal/importar-xml");
+        String nome = arquivo == null ? null : arquivo.getOriginalFilename();
+        String mime = arquivo == null ? null : arquivo.getContentType();
+        if (arquivo == null || arquivo.isEmpty() || arquivo.getSize() > br.com.gestpro.nota.service.NfeXmlImportService.MAX_XML_BYTES
+                || nome == null || !nome.toLowerCase(java.util.Locale.ROOT).endsWith(".xml")
+                || !(MediaType.APPLICATION_XML_VALUE.equalsIgnoreCase(mime) || MediaType.TEXT_XML_VALUE.equalsIgnoreCase(mime)))
+            throw new br.com.gestpro.infra.exception.ApiException("Envie um arquivo XML válido de até 2 MiB.",
+                    HttpStatus.BAD_REQUEST, "/api/nota-fiscal/importar-xml");
+        byte[] bytes = arquivo.getBytes();
+        try {
+            NotaFiscal nota = nfeXmlImportService.importar(empresaId, bytes);
+            fiscalAuditService.registrar(empresaId, nota.getId(), "XML_IMPORTADO", auth.getName(), "SUCESSO", null);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
+        } finally { java.util.Arrays.fill(bytes, (byte) 0); }
+    }
 
     @GetMapping("/{id}/xml")
     public ResponseEntity<byte[]> baixarXml(@PathVariable Long id, Authentication auth, HttpServletRequest httpRequest) {
