@@ -1,4 +1,4 @@
-FROM golang:1.24-bookworm AS backup-tools
+FROM golang:1.27-bookworm AS backup-tools
 
 ENV CGO_ENABLED=0
 
