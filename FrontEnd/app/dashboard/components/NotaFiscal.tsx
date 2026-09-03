@@ -45,6 +45,7 @@ type AbaGeral = "historico" | "emitir" | "configuracao" | "certificado" | "conta
 type TipoNota = "NFE" | "NFCE" | "NFSE";
 type ConfiguracaoFiscal = {
   inscricaoEstadual: string; regimeTributario: string; ambiente: "HOMOLOGACAO" | "PRODUCAO";
+  inscricaoMunicipal: string; cnae: string; codigoIbge: string; complemento: string; emailFiscal: string;
   serieNfe: string; serieNfce: string; cscId: string; cscConfigurado: boolean;
   fiscalHabilitado: boolean; nfeHabilitada: boolean; nfceHabilitada: boolean; nfseHabilitada: boolean;
 };
@@ -317,6 +318,8 @@ export default function NotaFiscalPage() {
       const c = json?.dados;
       const configuracao: ConfiguracaoFiscal = {
         inscricaoEstadual: c?.inscricaoEstadual ?? "", regimeTributario: c?.regimeTributario ?? "SIMPLES_NACIONAL",
+        inscricaoMunicipal: c?.inscricaoMunicipal ?? "", cnae: c?.cnae ?? "", codigoIbge: c?.codigoIbge ?? "",
+        complemento: c?.complemento ?? "", emailFiscal: c?.emailFiscal ?? "",
         ambiente: c?.ambiente ?? "HOMOLOGACAO", serieNfe: c?.serieNfe ?? "1", serieNfce: c?.serieNfce ?? "1",
         cscId: c?.cscId ?? "", cscConfigurado: Boolean(c?.cscConfigurado),
         fiscalHabilitado: Boolean(c?.fiscalHabilitado), nfeHabilitada: Boolean(c?.nfeHabilitada),
@@ -417,6 +420,11 @@ export default function NotaFiscalPage() {
         method: "PUT", headers: { "Content-Type": "application/json", "X-Fiscal-Confirmation": confirmation },
         body: JSON.stringify({
           inscricaoEstadual: configFiscal.inscricaoEstadual,
+          inscricaoMunicipal: configFiscal.inscricaoMunicipal,
+          cnae: configFiscal.cnae,
+          codigoIbge: configFiscal.codigoIbge,
+          complemento: configFiscal.complemento,
+          emailFiscal: configFiscal.emailFiscal,
           regimeTributario: configFiscal.regimeTributario,
           ambiente: configFiscal.ambiente,
           serieNfe: configFiscal.serieNfe,
@@ -1115,6 +1123,16 @@ export default function NotaFiscalPage() {
                     onChange={e => setConfigFiscal({ ...configFiscal, [item.campo]: e.target.checked })}/>
                   <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 700 }}>{item.nome}</span>
                 </label>)}
+              </div>
+            </Card>
+
+            <Card title="Dados complementares do emitente" subtitle="Informações locais usadas no XML; nenhuma consulta externa será feita durante a emissão.">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+                <StyledInput label="Código IBGE do município" inputMode="numeric" maxLength={7} value={configFiscal.codigoIbge} onChange={e => setConfigFiscal({ ...configFiscal, codigoIbge: e.target.value.replace(/\D/g, "").slice(0, 7) })}/>
+                <StyledInput label="Inscrição municipal" maxLength={20} value={configFiscal.inscricaoMunicipal} onChange={e => setConfigFiscal({ ...configFiscal, inscricaoMunicipal: e.target.value })}/>
+                <StyledInput label="CNAE principal" inputMode="numeric" maxLength={7} value={configFiscal.cnae} onChange={e => setConfigFiscal({ ...configFiscal, cnae: e.target.value.replace(/\D/g, "").slice(0, 7) })}/>
+                <StyledInput label="Complemento do endereço" maxLength={60} value={configFiscal.complemento} onChange={e => setConfigFiscal({ ...configFiscal, complemento: e.target.value })}/>
+                <StyledInput label="E-mail fiscal" type="email" maxLength={254} value={configFiscal.emailFiscal} onChange={e => setConfigFiscal({ ...configFiscal, emailFiscal: e.target.value })}/>
               </div>
             </Card>
 

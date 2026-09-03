@@ -16,6 +16,11 @@ public class ConfiguracaoFiscalEmpresa {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "empresa_id", nullable = false) private Long empresaId;
     @Column(name = "inscricao_estadual", length = 20) private String inscricaoEstadual;
+    @Column(name = "inscricao_municipal", length = 20) private String inscricaoMunicipal;
+    @Column(length = 7) private String cnae;
+    @Column(name = "codigo_ibge", length = 7) private String codigoIbge;
+    @Column(length = 60) private String complemento;
+    @Column(name = "email_fiscal", length = 254) private String emailFiscal;
     @Enumerated(EnumType.STRING) @Column(name = "regime_tributario", nullable = false, length = 40)
     private RegimeTributario regimeTributario;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 15) private Ambiente ambiente;
@@ -51,6 +56,16 @@ public class ConfiguracaoFiscalEmpresa {
         this.nfeHabilitada = nfeHabilitada;
         this.nfceHabilitada = nfceHabilitada;
         this.nfseHabilitada = nfseHabilitada;
+        this.atualizadoEm = Instant.now();
+    }
+
+    public void atualizarDadosEmitente(String inscricaoMunicipal, String cnae, String codigoIbge,
+                                       String complemento, String emailFiscal) {
+        this.inscricaoMunicipal = inscricaoMunicipal;
+        this.cnae = cnae;
+        this.codigoIbge = codigoIbge;
+        this.complemento = complemento;
+        this.emailFiscal = emailFiscal;
         this.atualizadoEm = Instant.now();
     }
 }

@@ -46,6 +46,6 @@ class ConfiguracaoFiscalFeatureFlagTest {
     private ConfiguracaoFiscalRequest request(boolean modulo, boolean nfe, boolean confirmar) {
         return new ConfiguracaoFiscalRequest("123", RegimeTributario.SIMPLES_NACIONAL,
                 ConfiguracaoFiscalEmpresa.Ambiente.PRODUCAO, "1", "1", null, null,
-                modulo, nfe, false, false, confirmar);
+                modulo, nfe, false, false, confirmar, null, null, "3550308", null, null);
     }
 }

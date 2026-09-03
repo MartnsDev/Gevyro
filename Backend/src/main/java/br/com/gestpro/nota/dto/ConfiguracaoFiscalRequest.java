@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
 
 public record ConfiguracaoFiscalRequest(
         @Size(max = 20) String inscricaoEstadual,
@@ -19,5 +20,10 @@ public record ConfiguracaoFiscalRequest(
         boolean nfeHabilitada,
         boolean nfceHabilitada,
         boolean nfseHabilitada,
-        boolean confirmarProducao
+        boolean confirmarProducao,
+        @Size(max = 20) String inscricaoMunicipal,
+        @Pattern(regexp = "^$|[0-9]{7}") String cnae,
+        @Pattern(regexp = "^$|[0-9]{7}") String codigoIbge,
+        @Size(max = 60) String complemento,
+        @Email @Size(max = 254) String emailFiscal
 ) {}

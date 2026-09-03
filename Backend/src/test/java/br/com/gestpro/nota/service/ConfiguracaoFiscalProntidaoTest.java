@@ -85,6 +85,7 @@ class ConfiguracaoFiscalProntidaoTest {
                 ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO, "1", "1", comCsc ? "1" : null,
                 comCsc ? new byte[]{1} : null, comCsc ? new byte[12] : null, true,
                 true, true, true, false);
+        config.atualizarDadosEmitente(null, null, "3550308", null, null);
         return config;
     }
 

@@ -657,20 +657,23 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 .orElseThrow(()->new ApiException("Empresa não encontrada.",HttpStatus.NOT_FOUND,"/api/nota-fiscal"));
         String cnpj=e.getCnpj()!=null?e.getCnpj().replaceAll("\\D",""):"";
         if(cnpj.length()!=14)throw new ApiException("Cadastre um CNPJ válido na empresa antes de emitir.",HttpStatus.PRECONDITION_FAILED,"/api/nota-fiscal/emitir");
-        Map<String,Object> dados;
-        try{dados=consultarCnpjService.consultarCnpj(cnpj);}catch(Exception ex){dados=Map.of();}
-        String codigoIbge=valor(dados,"codigoIbge");
-        String municipio=primeiro(e.getCidade(),valor(dados,"municipio"));
-        String uf=primeiro(e.getUf(),valor(dados,"uf"));
-        String razao=primeiro(e.getRazaoSocial(),valor(dados,"nome"),e.getNomeFantasia());
+        ConfiguracaoFiscalEmpresa fiscal = configuracaoFiscalRepository.findByEmpresaId(empresaId).orElse(null);
+        String codigoIbge=fiscal == null ? null : fiscal.getCodigoIbge();
+        String municipio=e.getCidade();
+        String uf=e.getUf();
+        String razao=primeiro(e.getRazaoSocial(),e.getNomeFantasia());
         if(vazio(uf)||vazio(municipio)||vazio(e.getLogradouro())||vazio(e.getBairro())||vazio(e.getCep())||vazio(codigoIbge))
             throw new ApiException("Complete o endereço fiscal da empresa e o código IBGE do município antes de emitir.",HttpStatus.PRECONDITION_FAILED,"/api/nota-fiscal/emitir");
-        ConfiguracaoFiscalEmpresa fiscal = configuracaoFiscalRepository.findByEmpresaId(empresaId).orElse(null);
+        String ie = fiscal.getInscricaoEstadual();
+        if (!codigoIbge.matches("[0-9]{7}") || fiscal.getRegimeTributario() == null || vazio(ie)
+                || !("ISENTO".equalsIgnoreCase(ie) || ie.matches("[0-9]{2,14}")))
+            throw new ApiException("Complete inscrição estadual, regime tributário e código IBGE válidos antes de emitir.",HttpStatus.PRECONDITION_FAILED,"/api/nota-fiscal/emitir");
         return EmpresaInfo.builder().id(e.getId()).cnpj(cnpj).razaoSocial(razao).nomeFantasia(e.getNomeFantasia())
-                .logradouro(e.getLogradouro()).numero(primeiro(e.getNumero(),"S/N")).bairro(e.getBairro()).municipio(municipio)
+                .logradouro(e.getLogradouro()).numero(primeiro(e.getNumero(),"S/N")).complemento(fiscal.getComplemento())
+                .bairro(e.getBairro()).municipio(municipio)
                 .codigoIbge(codigoIbge).uf(uf).cep(e.getCep()).telefone(e.getTelefone())
-                .inscricaoEstadual(fiscal == null ? null : fiscal.getInscricaoEstadual())
-                .regimeTributario(fiscal == null ? RegimeTributario.SIMPLES_NACIONAL : fiscal.getRegimeTributario()).build();
+                .inscricaoEstadual(fiscal.getInscricaoEstadual()).inscricaoMunicipal(fiscal.getInscricaoMunicipal())
+                .cnae(fiscal.getCnae()).email(fiscal.getEmailFiscal()).regimeTributario(fiscal.getRegimeTributario()).build();
     }
 
     private boolean isHomologacao(Long empresaId) {
@@ -679,7 +682,6 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 .orElse(config.isHomologacao());
     }
 
-    private String valor(Map<String,Object> dados,String chave){Object v=dados.get(chave);return v==null?null:String.valueOf(v);}
     private boolean vazio(String v){return v==null||v.isBlank();}
     private String primeiro(String... valores){for(String v:valores)if(!vazio(v))return v;return null;}
 

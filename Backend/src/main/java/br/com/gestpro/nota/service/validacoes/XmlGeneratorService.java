@@ -140,8 +140,8 @@ public class XmlGeneratorService {
             xml.append("<fone>").append(digitos(empresa.getTelefone())).append("</fone>");
         }
         xml.append("</enderEmit>");
-        xml.append("<IE>").append(empresa.getInscricaoEstadual() != null
-                ? digitos(empresa.getInscricaoEstadual()) : "ISENTO").append("</IE>");
+        String ie = empresa.getInscricaoEstadual();
+        xml.append("<IE>").append("ISENTO".equalsIgnoreCase(ie) ? "ISENTO" : digitos(ie)).append("</IE>");
         if (empresa.getInscricaoMunicipal() != null) {
             xml.append("<IM>").append(empresa.getInscricaoMunicipal()).append("</IM>");
         }
