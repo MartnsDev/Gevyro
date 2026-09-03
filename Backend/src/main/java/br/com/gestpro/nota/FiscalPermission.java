@@ -1,0 +1,5 @@
+package br.com.gestpro.nota;
+
+public enum FiscalPermission {
+    VISUALIZAR, EMITIR, CANCELAR, INUTILIZAR, CONFIGURAR, GERENCIAR_CERTIFICADO, EXPORTAR, GERENCIAR_ACESSOS
+}
