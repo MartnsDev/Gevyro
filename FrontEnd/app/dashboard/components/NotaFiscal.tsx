@@ -702,6 +702,30 @@ export default function NotaFiscalPage() {
           </button>
         </div>
 
+        <div role={configFiscal?.ambiente === "PRODUCAO" ? "alert" : "status"} aria-live="polite" style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+          padding: "13px 16px", borderRadius: 12, border: `2px solid ${configFiscal?.ambiente === "PRODUCAO" ? theme.danger : theme.warning}`,
+          background: configFiscal?.ambiente === "PRODUCAO" ? theme.dangerAlpha : theme.warningAlpha
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <ShieldCheck size={19} color={configFiscal?.ambiente === "PRODUCAO" ? theme.danger : theme.warning}/>
+            <div>
+              <strong style={{ display: "block", fontSize: 13, color: configFiscal?.ambiente === "PRODUCAO" ? theme.danger : theme.warning }}>
+                {!configFiscal ? "AMBIENTE FISCAL CARREGANDO" : configFiscal.ambiente === "PRODUCAO" ? "AMBIENTE DE PRODUÇÃO" : "AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL"}
+              </strong>
+              <span style={{ fontSize: 11, color: theme.textMuted }}>
+                {!configFiscal ? "As ações de emissão permanecem bloqueadas até confirmar a configuração." : configFiscal.ambiente === "PRODUCAO"
+                  ? "Documentos autorizados podem possuir validade jurídica. Confira destinatário, itens e tributação antes de transmitir."
+                  : "Documentos são destinados exclusivamente a testes e devem conter a identificação exigida pela SEFAZ."}
+              </span>
+            </div>
+          </div>
+          {configFiscal && <span style={{ padding: "6px 11px", borderRadius: 99, fontSize: 11, fontWeight: 800,
+            color: configFiscal.ambiente === "PRODUCAO" ? "#fff" : "#111", background: configFiscal.ambiente === "PRODUCAO" ? theme.danger : theme.warning }}>
+            {configFiscal.ambiente}
+          </span>}
+        </div>
+
         <div role="status" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, padding: "14px 16px", border: "1px solid rgba(245,158,11,.35)", borderRadius: 12, background: theme.warningAlpha }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
             <AlertTriangle size={18} color={theme.warning} style={{ marginTop: 1, flexShrink: 0 }} />
