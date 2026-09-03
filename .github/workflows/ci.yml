@@ -66,3 +66,5 @@ jobs:
         run: |
           test "$(docker image inspect gevyro-backup:ci --format '{{.Config.User}}')" = "mysql"
           docker run --rm --entrypoint /bin/bash gevyro-backup:ci -lc 'test "$(id -u)" -ne 0'
+      - name: Validar scripts de backup e restauração
+        run: docker run --rm --entrypoint /bin/bash gevyro-backup:ci -n /backup/backup.sh /backup/restore-verify.sh

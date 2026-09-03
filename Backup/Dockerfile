@@ -15,7 +15,8 @@ RUN age --version && rclone version && mysqldump --version
 WORKDIR /backup
 
 COPY --chown=mysql:mysql backup.sh /backup/backup.sh
-RUN chmod 0555 /backup/backup.sh
+COPY --chown=mysql:mysql restore-verify.sh /backup/restore-verify.sh
+RUN chmod 0555 /backup/backup.sh /backup/restore-verify.sh
 
 USER mysql
 
