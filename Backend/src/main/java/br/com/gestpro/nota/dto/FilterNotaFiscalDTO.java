@@ -25,6 +25,7 @@ public class FilterNotaFiscalDTO {
     private TipoNota tipo;
     private DocumentoFiscalAmbiente ambiente;
     private String clienteNome;
+    private String chaveAcesso;
     private Long numero;
     private String serie;
     private BigDecimal valorMin;

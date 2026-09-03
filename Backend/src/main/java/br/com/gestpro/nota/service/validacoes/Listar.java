@@ -44,6 +44,7 @@ public class Listar {
         if (limit < 1 || limit > 100) throw invalido("O limite deve estar entre 1 e 100.");
         if (filter.getClienteNome() != null && filter.getClienteNome().trim().length() > 120)
             throw invalido("Filtro de cliente excessivo.");
+        String chaveAcesso = normalizarChave(filter.getChaveAcesso());
         String serie = blankToNull(filter.getSerie());
         if (serie != null && !serie.matches("\\d{1,3}")) throw invalido("Série fiscal inválida.");
         if (filter.getNumero() != null && filter.getNumero() < 1) throw invalido("Número fiscal inválido.");
@@ -73,6 +74,7 @@ public class Listar {
                 filter.getTipo(),
                 filter.getAmbiente(),
                 blankToNull(filter.getClienteNome()),
+                chaveAcesso,
                 filter.getNumero(),
                 serie,
                 filter.getValorMin(),
@@ -130,6 +132,14 @@ public class Listar {
 
     private String blankToNull(String s) {
         return (s != null && !s.isBlank()) ? s.trim() : null;
+    }
+
+    private String normalizarChave(String chave) {
+        if (chave == null || chave.isBlank()) return null;
+        String normalizada = chave.replaceAll("\\s", "");
+        if (!normalizada.matches("\\d{44}"))
+            throw invalido("Chave de acesso inválida; informe exatamente 44 dígitos.");
+        return normalizada;
     }
 
     private ApiException invalido(String mensagem) {

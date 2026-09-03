@@ -419,7 +419,9 @@ export default function NotaFiscalPage() {
       if (filtroValorMax) params.append("valorMax", filtroValorMax);
       if (filtroBusca) {
         const busca = filtroBusca.trim();
-        if (/^\\d{1,9}$/.test(busca)) params.append("numero", String(Number(busca)));
+        const buscaSemEspacos = busca.replace(/\\s/g, "");
+        if (/^\\d{44}$/.test(buscaSemEspacos)) params.append("chaveAcesso", buscaSemEspacos);
+        else if (/^\\d{1,9}$/.test(busca)) params.append("numero", String(Number(busca)));
         else params.append("clienteNome", busca);
       }
 
@@ -807,7 +809,7 @@ export default function NotaFiscalPage() {
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
                 <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
-                <input placeholder="Buscar por cliente ou número..." value={filtroBusca} onChange={e => { setFiltroBusca(e.target.value); setPaginaAtual(1); }} style={{ ...inpStyle, paddingLeft: 36 }} />
+                <input placeholder="Buscar por cliente, número ou chave de acesso..." value={filtroBusca} maxLength={60} onChange={e => { setFiltroBusca(e.target.value); setPaginaAtual(1); }} style={{ ...inpStyle, paddingLeft: 36 }} />
               </div>
               <select value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPaginaAtual(1); }} style={{ ...inpStyle, width: 200 }}>
                 <option value="TODOS">Todos os Status</option>

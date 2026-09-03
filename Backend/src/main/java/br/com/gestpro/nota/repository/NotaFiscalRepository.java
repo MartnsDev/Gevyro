@@ -75,6 +75,7 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             "(:tipo IS NULL OR n.tipo = :tipo) AND " +
             "(:ambiente IS NULL OR n.ambiente = :ambiente) AND " +
             "(:clienteNome IS NULL OR LOWER(n.clienteNome) LIKE LOWER(CONCAT('%', :clienteNome, '%'))) AND " +
+            "(:chaveAcesso IS NULL OR n.chaveAcesso = :chaveAcesso) AND " +
             "(:numero IS NULL OR n.numeroNota = :numero) AND " +
             "(:serie IS NULL OR n.serie = :serie) AND " +
             "(:valorMin IS NULL OR n.valorTotal >= :valorMin) AND " +
@@ -87,6 +88,7 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             TipoNota tipo,
             DocumentoFiscalAmbiente ambiente,
             String clienteNome,
+            String chaveAcesso,
             Long numero,
             String serie,
             BigDecimal valorMin,
