@@ -497,12 +497,13 @@ export default function NotaFiscalPage() {
   }, [aba, EMPRESA_ID, carregarCertificado]);
 
   const handleConsultarCnpj = async () => {
+    if (!EMPRESA_ID) { setErroApi("Selecione uma empresa antes da consulta."); return; }
     const limpo = clienteDoc.replace(/\D/g, "");
     if (limpo.length !== 14) { setErroApi("Digite os 14 números do CNPJ."); return; }
     
     setBuscandoCnpj(true);
     try {
-      const data = await fetchSeguro(`${API_BASE}/cnpj/${limpo}`);
+      const data = await fetchSeguro(`${API_BASE}/cnpj/${limpo}?empresaId=${encodeURIComponent(EMPRESA_ID)}`);
       if (data) { 
         setClienteNome(data.nome || data.fantasia || ""); 
         toast.success(`Dados de CNPJ recuperados com sucesso!`); 

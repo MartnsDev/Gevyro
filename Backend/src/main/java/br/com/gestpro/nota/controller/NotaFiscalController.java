@@ -327,13 +327,21 @@ public class NotaFiscalController {
 
     // CONSULTAS AUXILIARES
     @GetMapping("/cep/{cep}")
-    public ResponseEntity<Object> consultarCep(@PathVariable String cep) {
+    public ResponseEntity<Object> consultarCep(@PathVariable String cep, @RequestParam Long empresaId,
+            Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest,
+                "/api/nota-fiscal/cep");
         Object resultado = notaFiscalService.consultarCep(cep);
         return resultado != null ? ResponseEntity.ok(resultado) : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/cnpj/{cnpj}")
-    public ResponseEntity<Object> consultarCnpj(@PathVariable String cnpj) {
+    public ResponseEntity<Object> consultarCnpj(@PathVariable String cnpj, @RequestParam Long empresaId,
+            Authentication auth, HttpServletRequest httpRequest) {
+        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest,
+                "/api/nota-fiscal/cnpj");
         Object resultado = notaFiscalService.consultarCnpj(cnpj);
         return resultado != null ? ResponseEntity.ok(resultado) : ResponseEntity.notFound().build();
     }
