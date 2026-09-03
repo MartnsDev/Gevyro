@@ -582,6 +582,30 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); }
   };
 
+  const handleContingenciaOffline = async (nota: any) => {
+    if (nota?.tipo !== "NFCE" || nota?.status !== "DIGITACAO") return;
+    const motivo = window.prompt("Justificativa objetiva da indisponibilidade (15 a 255 caracteres):");
+    if (motivo === null) return;
+    const justificativa = motivo.trim();
+    if (justificativa.length < 15 || justificativa.length > 255) {
+      setErroApi("A justificativa da contingência deve conter entre 15 e 255 caracteres.");
+      return;
+    }
+    if (!window.confirm("Gerar esta NFC-e em contingência offline? O XML será assinado localmente e NÃO será transmitido agora.")) return;
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
+    try {
+      await fetchSeguro(`${API_BASE}/${nota.id}/contingencia-offline`, {
+        method: "POST",
+        headers: { "X-Fiscal-Confirmation": confirmation },
+        body: JSON.stringify({ justificativa }),
+      });
+      toast.success("NFC-e offline gerada e preservada para transmissão posterior.");
+      setNotaSelecionada(null);
+      carregarNotas();
+    } catch (e: any) { setErroApi(e.message); }
+  };
+
   const abrirCartaCorrecao = (nota: any) => {
     if (nota?.tipo !== "NFE" || nota?.status !== "AUTORIZADA") return;
     setNotaSelecionada(null);
@@ -1258,6 +1282,11 @@ export default function NotaFiscalPage() {
                   </div>
 
                   <div style={{ marginTop: 30, display: "flex", gap: 10 }}>
+                      {notaSelecionada.tipo === "NFCE" && notaSelecionada.status === "DIGITACAO" && (
+                        <button onClick={() => handleContingenciaOffline(notaSelecionada)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.warning, borderColor: theme.warning }}>
+                          <AlertTriangle size={16}/> Gerar offline
+                        </button>
+                      )}
                       {notaSelecionada.status === "AUTORIZADA" && (
                           <>
                              {(notaSelecionada.tipo === "NFE" || notaSelecionada.tipo === "NFCE") && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/danfe`, `danfe-${notaSelecionada.numeroNota}.pdf`)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.primary,borderColor:theme.primaryAlpha }}><FileText size={16}/> DANFE</button>}
