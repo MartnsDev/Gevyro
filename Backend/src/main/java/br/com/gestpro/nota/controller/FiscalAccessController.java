@@ -20,6 +20,7 @@ public class FiscalAccessController {
     private final FiscalAccessManagementService service;
     private final DistributedRateLimitService rateLimit;
     private final FiscalAuthorizationService authorization;
+    private final br.com.gestpro.nota.service.FiscalStepUpService stepUp;
 
     @GetMapping
     public ApiResponse<List<FiscalAccessResponse>> listar(@PathVariable Long empresaId, Authentication auth, HttpServletRequest http) {
@@ -29,16 +30,21 @@ public class FiscalAccessController {
     }
     @PutMapping
     public ApiResponse<FiscalAccessResponse> conceder(@PathVariable Long empresaId,
-            @Valid @RequestBody FiscalAccessRequest request, Authentication auth, HttpServletRequest http) {
+            @Valid @RequestBody FiscalAccessRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest http) {
         authorization.exigir(empresaId, auth.getName(), FiscalPermission.GERENCIAR_ACESSOS);
         limitar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId, auth, http);
+        stepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
         return ApiResponse.ok(service.conceder(empresaId, request, auth.getName()));
     }
     @DeleteMapping("/{acessoId}")
     public ResponseEntity<ApiResponse<Void>> revogar(@PathVariable Long empresaId, @PathVariable Long acessoId,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
             Authentication auth, HttpServletRequest http) {
         authorization.exigir(empresaId, auth.getName(), FiscalPermission.GERENCIAR_ACESSOS);
         limitar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId, auth, http);
+        stepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
         service.revogar(empresaId, acessoId, auth.getName());
         return ResponseEntity.ok(ApiResponse.ok(null));
     }

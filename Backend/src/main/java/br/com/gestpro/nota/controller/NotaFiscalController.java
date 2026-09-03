@@ -31,6 +31,7 @@ public class NotaFiscalController {
     private final br.com.gestpro.nota.service.NfeXmlImportService nfeXmlImportService;
     private final br.com.gestpro.nota.service.validacoes.Listar listarNotas;
     private final br.com.gestpro.nota.service.CertificateService certificateService;
+    private final br.com.gestpro.nota.service.FiscalStepUpService fiscalStepUp;
 
     // CRUD
 
@@ -98,10 +99,13 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/cancelar")
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@jakarta.validation.Valid @RequestBody CancelarNotaRequest request, Authentication auth, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@jakarta.validation.Valid @RequestBody CancelarNotaRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
         NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
         notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.CANCELAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/cancelar");
+        fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
         try {
             NotaFiscal nota = notaFiscalService.cancelar(request);
             fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CANCELADO", auth.getName(), "SUCESSO", null);
@@ -114,11 +118,13 @@ public class NotaFiscalController {
     @PostMapping("/carta-correcao")
     public ResponseEntity<ApiResponse<Map<String, Object>>> cartaCorrecao(
             @jakarta.validation.Valid @RequestBody CartaCorrecaoRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
             Authentication auth, HttpServletRequest httpRequest) {
         NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
         notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.CANCELAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
                 "/api/nota-fiscal/carta-correcao");
+        fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
         EventoFiscal evento = notaFiscalService.cartaCorrecao(request);
         fiscalAuditService.registrar(acesso.getEmpresaId(), acesso.getId(), "CCE_REGISTRADA", auth.getName(),
                 "SUCESSO", "sequencia=" + evento.getSequencia() + ",protocolo=" + evento.getProtocolo());
@@ -127,9 +133,12 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/inutilizar")
-    public ResponseEntity<ApiResponse<Void>> inutilizar(@jakarta.validation.Valid @RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<Void>> inutilizar(@jakarta.validation.Valid @RequestBody InutilizarRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(request.getEmpresaId(), auth.getName(), FiscalPermission.INUTILIZAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, request.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/inutilizar");
+        fiscalStepUp.exigirEConsumir(request.getEmpresaId(), auth.getName(), confirmation);
         notaFiscalService.inutilizar(request);
         fiscalAuditService.registrar(request.getEmpresaId(), null, "NUMERACAO_INUTILIZADA", auth.getName(), "SUCESSO",
                 "tipo=" + request.getTipo() + ",serie=" + request.getSerie() + ",faixa=" + request.getNumeroInicio() + "-" + request.getNumeroFim());
@@ -259,10 +268,13 @@ public class NotaFiscalController {
 
     @DeleteMapping("/certificado/{empresaId}")
     public ResponseEntity<ApiResponse<Void>> excluirCertificado(
-            @PathVariable Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
+            @PathVariable Long empresaId,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
+        fiscalStepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
         certificateService.excluir(empresaId);
         fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_EXCLUIDO", auth.getName(), "SUCESSO", null);
         return ResponseEntity.ok(ApiResponse.ok(null));
@@ -272,11 +284,14 @@ public class NotaFiscalController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadCertificado(
             @PathVariable Long empresaId,
             @RequestParam("arquivo") MultipartFile arquivo,
-            @RequestParam("senha") String senha, Authentication auth, HttpServletRequest httpRequest
+            @RequestParam("senha") String senha,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest
     ) {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
+        fiscalStepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
         try {
             if (arquivo == null || arquivo.isEmpty() || arquivo.getSize() > br.com.gestpro.nota.service.CertificateService.MAX_PFX_BYTES)
                 return ResponseEntity.badRequest().body(ApiResponse.erro("Certificado A1 deve possuir no máximo 1 MiB."));

@@ -197,6 +197,9 @@ export default function NotaFiscalPage() {
   const [prontidaoFiscal, setProntidaoFiscal] = useState<ProntidaoFiscal | null>(null);
   const [inutilizacao, setInutilizacao] = useState({ tipo: "NFE" as "NFE" | "NFCE", ano: new Date().getFullYear(), serie: "1", inicio: "", fim: "", justificativa: "", confirmacao: "" });
   const [inutilizando, setInutilizando] = useState(false);
+  const [senhaConfirmacao, setSenhaConfirmacao] = useState("");
+  const [confirmandoIdentidade, setConfirmandoIdentidade] = useState(false);
+  const [confirmacaoResolver, setConfirmacaoResolver] = useState<((token: string | null) => void) | null>(null);
 
   // API SEGURA
   const fetchSeguro = async (url: string, options: RequestInit = {}) => {
@@ -231,6 +234,34 @@ export default function NotaFiscalPage() {
     }
     
     return json || { sucesso: true };
+  };
+
+  const confirmarIdentidade = () => new Promise<string | null>(resolve => {
+    setSenhaConfirmacao("");
+    setConfirmacaoResolver(() => resolve);
+  });
+
+  const concluirConfirmacaoIdentidade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!EMPRESA_ID || !confirmacaoResolver || !senhaConfirmacao) return;
+    setConfirmandoIdentidade(true);
+    try {
+      const res = await fetchAuth(`/api/fiscal/confirmacao/${EMPRESA_ID}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha: senhaConfirmacao })
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.dados?.token) throw new Error(json?.mensagem || "Não foi possível confirmar sua identidade.");
+      const resolver = confirmacaoResolver;
+      setConfirmacaoResolver(null); setSenhaConfirmacao("");
+      resolver(json.dados.token);
+    } catch (e: any) { setErroApi(e.message); }
+    finally { setConfirmandoIdentidade(false); }
+  };
+
+  const cancelarConfirmacaoIdentidade = () => {
+    const resolver = confirmacaoResolver;
+    setConfirmacaoResolver(null); setSenhaConfirmacao("");
+    resolver?.(null);
   };
 
   const fazerDownloadSeguro = async (url: string, filename: string) => {
@@ -378,10 +409,12 @@ export default function NotaFiscalPage() {
 
   const salvarConfiguracao = async () => {
     if (!EMPRESA_ID || !configFiscal) return;
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
     setSalvandoConfig(true);
     try {
       const res = await fetchAuth(`/api/fiscal/configuracao/${EMPRESA_ID}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json", "X-Fiscal-Confirmation": confirmation },
         body: JSON.stringify({
           inscricaoEstadual: configFiscal.inscricaoEstadual,
           regimeTributario: configFiscal.regimeTributario,
@@ -532,9 +565,11 @@ export default function NotaFiscalPage() {
     const motivo = window.prompt("Justificativa SEFAZ (Mín. 15 caracteres):");
     if (!motivo) return; // Se cancelou o prompt
     if (motivo.length < 15) { setErroApi("A justificativa de cancelamento deve ter pelo menos 15 caracteres."); return; }
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
     
     try {
-      await fetchSeguro(`${API_BASE}/cancelar`, { method: "POST", body: JSON.stringify({ notaId: id, justificativa: motivo }) });
+      await fetchSeguro(`${API_BASE}/cancelar`, { method: "POST", headers: { "X-Fiscal-Confirmation": confirmation }, body: JSON.stringify({ notaId: id, justificativa: motivo }) });
       toast.success("Nota Cancelada com sucesso!"); setNotaSelecionada(null); carregarNotas();
     } catch (e: any) { setErroApi(e.message); }
   };
@@ -566,10 +601,13 @@ export default function NotaFiscalPage() {
       setErroApi("Confirme que a correção respeita as restrições legais da CC-e.");
       return;
     }
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
     setEnviandoCce(true);
     try {
       const resposta = await fetchSeguro(`${API_BASE}/carta-correcao`, {
         method: "POST",
+        headers: { "X-Fiscal-Confirmation": confirmation },
         body: JSON.stringify({ notaId: notaCartaCorrecao.id, correcao }),
       });
       const sequencia = resposta?.dados?.sequencia;
@@ -616,6 +654,8 @@ export default function NotaFiscalPage() {
     e.preventDefault();
     if (!arquivoCert || !senhaCert) { setErroApi("Preencha o arquivo .pfx e digite a senha."); return; }
     if (!EMPRESA_ID) { setErroApi("Empresa não identificada no contexto."); return; }
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
     
     setSalvandoCert(true);
     try {
@@ -623,7 +663,7 @@ export default function NotaFiscalPage() {
       formData.append("arquivo", arquivoCert); 
       formData.append("senha", senhaCert);
       
-      const json = await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`, { method: "POST", body: formData });
+      const json = await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`, { method: "POST", headers: { "X-Fiscal-Confirmation": confirmation }, body: formData });
       if (json?.sucesso) { 
         toast.success("Certificado ativado e validado com sucesso!"); 
         setCertInfo(json.dados); 
@@ -639,8 +679,10 @@ export default function NotaFiscalPage() {
       if (confirmacao !== null) setErroApi("Confirmação incorreta. O certificado não foi excluído.");
       return;
     }
+    const confirmationToken = await confirmarIdentidade();
+    if (!confirmationToken) return;
     try {
-      await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`, { method: "DELETE" });
+      await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`, { method: "DELETE", headers: { "X-Fiscal-Confirmation": confirmationToken } });
       setCertInfo(null); setArquivoCert(null); setSenhaCert("");
       await carregarProntidao();
       toast.success("Certificado excluído. Novas emissões permanecerão bloqueadas até configurar outro A1.");
@@ -663,9 +705,11 @@ export default function NotaFiscalPage() {
     }
     const frase = `INUTILIZAR ${inicio}-${fim}`;
     if (inutilizacao.confirmacao !== frase) { setErroApi(`Digite exatamente ${frase} para confirmar.`); return; }
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
     setInutilizando(true);
     try {
-      await fetchSeguro(`${API_BASE}/inutilizar`, { method: "POST", body: JSON.stringify({
+      await fetchSeguro(`${API_BASE}/inutilizar`, { method: "POST", headers: { "X-Fiscal-Confirmation": confirmation }, body: JSON.stringify({
         empresaId: EMPRESA_ID, tipo: inutilizacao.tipo, serie: inutilizacao.serie,
         ano: inutilizacao.ano, numeroInicio: inicio, numeroFim: fim, justificativa: inutilizacao.justificativa.trim()
       }) });
@@ -1242,6 +1286,23 @@ export default function NotaFiscalPage() {
                 <button type="button" onClick={fecharCartaCorrecao} disabled={enviandoCce} style={btnStyle}>Voltar</button>
                 <button type="submit" disabled={enviandoCce || !cienteLimitesCce || textoCartaCorrecao.trim().length < 15 || textoCartaCorrecao.trim().length > 1000} style={{ ...btnStyle, background: theme.warning, borderColor: theme.warning, color: "#111827", opacity: enviandoCce || !cienteLimitesCce || textoCartaCorrecao.trim().length < 15 ? .55 : 1, cursor: enviandoCce ? "wait" : "pointer" }}>
                   {enviandoCce ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} Registrar na SEFAZ
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {confirmacaoResolver && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.86)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9000, backdropFilter: "blur(6px)" }}>
+            <form onSubmit={concluirConfirmacaoIdentidade} style={{ width: 420, maxWidth: "92%", padding: 28, borderRadius: 18, background: theme.bgCard, border: `1px solid ${theme.warning}`, boxShadow: "0 25px 60px rgba(0,0,0,.5)" }}>
+              <ShieldCheck size={28} color={theme.warning} />
+              <h2 style={{ margin: "14px 0 7px", color: theme.textMain, fontSize: 19 }}>Confirme sua identidade</h2>
+              <p style={{ margin: "0 0 18px", color: theme.textMuted, fontSize: 13, lineHeight: 1.5 }}>Esta operação altera dados fiscais sensíveis. Informe a senha da sua conta. A confirmação será válida para uma única operação.</p>
+              <StyledInput label="Senha da conta Gevyro" type="password" autoComplete="current-password" maxLength={200} autoFocus value={senhaConfirmacao} onChange={e => setSenhaConfirmacao(e.target.value)} disabled={confirmandoIdentidade} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
+                <button type="button" onClick={cancelarConfirmacaoIdentidade} disabled={confirmandoIdentidade} style={btnStyle}>Cancelar</button>
+                <button type="submit" disabled={confirmandoIdentidade || !senhaConfirmacao} style={{ ...btnStyle, color: "#111", background: theme.warning, borderColor: theme.warning, opacity: confirmandoIdentidade || !senhaConfirmacao ? .55 : 1 }}>
+                  {confirmandoIdentidade ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />} Confirmar
                 </button>
               </div>
             </form>
