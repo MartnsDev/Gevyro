@@ -19,6 +19,7 @@ homologação e não recebem liberação implícita para produção.
 - XML: geração versionada, assinatura XMLDSig, validação XSD e preservação
   cifrada com SHA-256 do documento autorizado;
 - providers: fronteira Strategy para SEFAZ direta e NFS-e Nacional/adapters;
+- entrega: solicitações de e-mail entram em outbox transacional, com destinatário cifrado e índice cego HMAC para deduplicação. Sem despachante autorizado, permanecem em `AGUARDANDO_CONFIGURACAO` e nenhum dado sai da Gevyro;
 - auditoria/observabilidade: trilha encadeada, correlation ID, métricas e health
   fiscal separado da saúde geral da aplicação.
 
@@ -68,6 +69,7 @@ Consulte `application.properties` para nomes e padrões. Em produção, forneça
 JWT, `FISCAL_MASTER_KEY`, banco, Redis, OAuth, Stripe e SMTP por secret manager.
 Nunca copie valores de exemplo ou testes. Origens CORS são allowlist explícita.
 O certificado A1 é enviado uma vez, validado e nunca devolvido pela API.
+`FISCAL_DELIVERY_EMAIL_ENABLED` permanece `false` por padrão. A flag sozinha não envia mensagens: um despachante externo revisado ainda precisa ser configurado e autorizado.
 
 ## Adicionar provider ou atualizar schema
 

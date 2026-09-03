@@ -1,0 +1,26 @@
+meta {
+  name: Solicitar entrega fiscal por e-mail
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/nota-fiscal/{{notaId}}/entregas/email
+  body: json
+  auth: bearer
+}
+
+headers {
+  X-Fiscal-Confirmation: {{confirmation}}
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "destinatario": "destinatario@example.com",
+    "confirmarDestinatario": true
+  }
+}

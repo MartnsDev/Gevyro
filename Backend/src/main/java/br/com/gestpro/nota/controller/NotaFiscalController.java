@@ -32,6 +32,7 @@ public class NotaFiscalController {
     private final br.com.gestpro.nota.service.validacoes.Listar listarNotas;
     private final br.com.gestpro.nota.service.CertificateService certificateService;
     private final br.com.gestpro.nota.service.FiscalStepUpService fiscalStepUp;
+    private final br.com.gestpro.nota.service.FiscalDeliveryService fiscalDeliveryService;
 
     // CRUD
 
@@ -225,6 +226,22 @@ public class NotaFiscalController {
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDisposition(ContentDisposition.attachment().filename("danfe-" + id + ".pdf").build());
         return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
+    @PostMapping("/{id}/entregas/email")
+    public ResponseEntity<ApiResponse<FiscalDeliveryResponse>> solicitarEntregaEmail(@PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody FiscalEmailDeliveryRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.EXPORTAR);
+        limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
+                "/api/nota-fiscal/entregas/email");
+        fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
+        FiscalDeliveryResponse delivery = fiscalDeliveryService.solicitarEmail(id, request.destinatario(), auth.getName());
+        fiscalAuditService.registrar(acesso.getEmpresaId(), id, "ENTREGA_EMAIL_SOLICITADA", auth.getName(),
+                delivery.status(), null);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(delivery));
     }
 
     // ÁREA DO CONTADOR

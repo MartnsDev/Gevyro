@@ -4,11 +4,13 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HexFormat;
 
 @Service
 public class FiscalEncryptionService {
@@ -35,6 +37,16 @@ public class FiscalEncryptionService {
     public byte[] decrypt(byte[] cipherText, byte[] nonce) {
         if (nonce == null || nonce.length != NONCE_BYTES) throw new IllegalArgumentException("Nonce fiscal inválido.");
         return crypt(Cipher.DECRYPT_MODE, cipherText, nonce);
+    }
+    /** Índice determinístico autenticado para deduplicação sem hash de dado pessoal em claro. */
+    public String blindIndex(byte[] value) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(key);
+            return HexFormat.of().formatHex(mac.doFinal(value));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("Falha ao indexar dado fiscal protegido.", e);
+        }
     }
     private byte[] crypt(int mode, byte[] input, byte[] nonce) {
         try {
