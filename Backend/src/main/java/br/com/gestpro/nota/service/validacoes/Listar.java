@@ -71,6 +71,7 @@ public class Listar {
                 filter.getEmpresaId(),
                 filter.getStatus(),
                 filter.getTipo(),
+                filter.getAmbiente(),
                 blankToNull(filter.getClienteNome()),
                 filter.getNumero(),
                 serie,
@@ -108,6 +109,7 @@ public class Listar {
         m.put("serie",          n.getSerie());
         m.put("tipo",           n.getTipo());
         m.put("status",         n.getStatus());
+        m.put("ambiente",       n.getAmbiente());
         m.put("clienteNome",    n.getClienteNome());
         m.put("clienteCpfCnpj", n.getClienteCpfCnpj());
         m.put("valorTotal",     n.getValorTotal());

@@ -3,6 +3,7 @@ package br.com.gestpro.nota.repository;
 
 import br.com.gestpro.nota.NotaFiscalStatus;
 import br.com.gestpro.nota.TipoNota;
+import br.com.gestpro.nota.DocumentoFiscalAmbiente;
 import br.com.gestpro.nota.model.NotaFiscal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -72,6 +73,7 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             "(:empresaId IS NULL OR n.empresaId = :empresaId) AND " +
             "(:status IS NULL OR n.status = :status) AND " +
             "(:tipo IS NULL OR n.tipo = :tipo) AND " +
+            "(:ambiente IS NULL OR n.ambiente = :ambiente) AND " +
             "(:clienteNome IS NULL OR LOWER(n.clienteNome) LIKE LOWER(CONCAT('%', :clienteNome, '%'))) AND " +
             "(:numero IS NULL OR n.numeroNota = :numero) AND " +
             "(:serie IS NULL OR n.serie = :serie) AND " +
@@ -83,6 +85,7 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, Long> {
             Long empresaId,
             NotaFiscalStatus status,
             TipoNota tipo,
+            DocumentoFiscalAmbiente ambiente,
             String clienteNome,
             Long numero,
             String serie,

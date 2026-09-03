@@ -3,6 +3,7 @@ package br.com.gestpro.nota.model;
 import br.com.gestpro.nota.FormaPagamento;
 import br.com.gestpro.nota.NotaFiscalStatus;
 import br.com.gestpro.nota.TipoNota;
+import br.com.gestpro.nota.DocumentoFiscalAmbiente;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -57,6 +58,11 @@ public class NotaFiscal {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private NotaFiscalStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 24, updatable = false)
+    @Builder.Default
+    private DocumentoFiscalAmbiente ambiente = DocumentoFiscalAmbiente.LEGADO_DESCONHECIDO;
 
 
     @Column(name = "numero_nota")

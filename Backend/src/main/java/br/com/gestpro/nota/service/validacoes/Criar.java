@@ -2,6 +2,7 @@ package br.com.gestpro.nota.service.validacoes;
 
 import br.com.gestpro.infra.exception.ApiException;
 import br.com.gestpro.nota.NotaFiscalStatus;
+import br.com.gestpro.nota.DocumentoFiscalAmbiente;
 import br.com.gestpro.nota.dto.CriarNotaRequest;
 import br.com.gestpro.nota.dto.ItemCalc;
 import br.com.gestpro.nota.model.ItemNotaFiscal;
@@ -67,6 +68,7 @@ public class Criar {
                 .valorDesconto(coalesce(request.getValorDesconto(), BigDecimal.ZERO))
                 .informacoesAdicionais(request.getInformacoesAdicionais())
                 .status(NotaFiscalStatus.DIGITACAO)
+                .ambiente(homologacao ? DocumentoFiscalAmbiente.HOMOLOGACAO : DocumentoFiscalAmbiente.PRODUCAO)
                 .nfseCompetencia(request.getNfseCompetencia())
                 .nfseCodigoMunicipioPrestacao(request.getNfseCodigoMunicipioPrestacao())
                 .nfseCodigoTributacaoNacional(request.getNfseCodigoTributacaoNacional())

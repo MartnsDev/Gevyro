@@ -4,6 +4,7 @@ import br.com.gestpro.empresa.model.Empresa;
 import br.com.gestpro.empresa.repository.EmpresaRepository;
 import br.com.gestpro.infra.exception.ApiException;
 import br.com.gestpro.nota.NotaFiscalStatus;
+import br.com.gestpro.nota.DocumentoFiscalAmbiente;
 import br.com.gestpro.nota.TipoNota;
 import br.com.gestpro.nota.config.FiscalSpecificationVersion;
 import br.com.gestpro.nota.model.NotaFiscal;
@@ -85,6 +86,11 @@ public class NfeXmlImportService {
         }
 
         Element ide = unico(infNfe, NFE_NS, "ide");
+        DocumentoFiscalAmbiente ambiente = switch (texto(ide, "tpAmb")) {
+            case "1" -> DocumentoFiscalAmbiente.PRODUCAO;
+            case "2" -> DocumentoFiscalAmbiente.HOMOLOGACAO;
+            default -> throw erro("O XML possui ambiente fiscal inválido.");
+        };
         String modelo = texto(ide, "mod");
         TipoNota tipo = switch (modelo) { case "55" -> TipoNota.NFE; case "65" -> TipoNota.NFCE;
             default -> throw erro("Somente NF-e modelo 55 e NFC-e modelo 65 podem ser importadas."); };
@@ -92,6 +98,7 @@ public class NfeXmlImportService {
         Element destinatario = opcional(infNfe, "dest");
         NotaFiscal nota = NotaFiscal.builder()
                 .empresaId(empresaId).tipo(tipo).status(NotaFiscalStatus.AUTORIZADA)
+                .ambiente(ambiente)
                 .numeroNota(longValor(texto(ide, "nNF"))).serie(texto(ide, "serie"))
                 .chaveAcesso(chave).naturezaOperacao(texto(ide, "natOp"))
                 .clienteNome(destinatario == null ? null : textoOpcional(destinatario, "xNome"))

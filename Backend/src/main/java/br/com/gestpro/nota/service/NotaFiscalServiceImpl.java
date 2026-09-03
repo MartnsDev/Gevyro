@@ -687,6 +687,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 .serie(nota.getSerie())
                 .tipo(nota.getTipo())
                 .status(nota.getStatus())
+                .ambiente(nota.getAmbiente())
                 .clienteNome(nota.getClienteNome())
                 .chaveAcesso(nota.getChaveAcesso())
                 .valorTotal(nota.getValorTotal())

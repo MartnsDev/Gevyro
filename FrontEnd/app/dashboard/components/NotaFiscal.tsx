@@ -128,6 +128,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function AmbienteBadge({ ambiente }: { ambiente?: string }) {
+  const valor = ambiente || "LEGADO_DESCONHECIDO";
+  const producao = valor === "PRODUCAO";
+  const homologacao = valor === "HOMOLOGACAO";
+  const label = producao ? "Produção" : homologacao ? "Homologação" : "Legado — desconhecido";
+  const color = producao ? theme.danger : homologacao ? theme.warning : theme.textMuted;
+  const background = producao ? theme.dangerAlpha : homologacao ? theme.warningAlpha : "var(--surface-overlay)";
+
+  return <span style={{ display: "inline-flex", padding: "4px 9px", borderRadius: 99, fontSize: 10, fontWeight: 800, color, background }}>{label}</span>;
+}
+
 // 4. COMPONENTE PRINCIPAL
 export default function NotaFiscalPage() {
   const { empresaAtiva } = useEmpresa();
@@ -148,6 +159,13 @@ export default function NotaFiscalPage() {
   const [estatisticas, setEstatisticas] = useState({ totalAutorizadas: 0, totalRejeitadas: 0, totalCanceladas: 0, valorTotalMes: 0 });
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroBusca, setFiltroBusca] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("TODOS");
+  const [filtroAmbiente, setFiltroAmbiente] = useState("TODOS");
+  const [filtroInicio, setFiltroInicio] = useState("");
+  const [filtroFim, setFiltroFim] = useState("");
+  const [filtroSerie, setFiltroSerie] = useState("");
+  const [filtroValorMin, setFiltroValorMin] = useState("");
+  const [filtroValorMax, setFiltroValorMax] = useState("");
   const [notaSelecionada, setNotaSelecionada] = useState<any>(null);
   const [notaCartaCorrecao, setNotaCartaCorrecao] = useState<any>(null);
   const [textoCartaCorrecao, setTextoCartaCorrecao] = useState("");
@@ -392,6 +410,13 @@ export default function NotaFiscalPage() {
     try {
       const params = new URLSearchParams({ empresaId: String(EMPRESA_ID), page: String(paginaAtual) });
       if (filtroStatus !== "TODOS") params.append("status", filtroStatus);
+      if (filtroTipo !== "TODOS") params.append("tipo", filtroTipo);
+      if (filtroAmbiente !== "TODOS") params.append("ambiente", filtroAmbiente);
+      if (filtroInicio) params.append("dataInicio", filtroInicio);
+      if (filtroFim) params.append("dataFim", filtroFim);
+      if (filtroSerie) params.append("serie", filtroSerie);
+      if (filtroValorMin) params.append("valorMin", filtroValorMin);
+      if (filtroValorMax) params.append("valorMax", filtroValorMax);
       if (filtroBusca) {
         const busca = filtroBusca.trim();
         if (/^\\d{1,9}$/.test(busca)) params.append("numero", String(Number(busca)));
@@ -409,7 +434,7 @@ export default function NotaFiscalPage() {
     } finally {
       setLoading(false);
     }
-  }, [EMPRESA_ID, filtroStatus, filtroBusca, paginaAtual]);
+  }, [EMPRESA_ID, filtroStatus, filtroBusca, filtroTipo, filtroAmbiente, filtroInicio, filtroFim, filtroSerie, filtroValorMin, filtroValorMax, paginaAtual]);
 
   const documentoHabilitado = (tipo: TipoNota) => Boolean(configFiscal?.fiscalHabilitado
     && (tipo === "NFE" ? configFiscal.nfeHabilitada : tipo === "NFCE" ? configFiscal.nfceHabilitada : false));
@@ -420,7 +445,7 @@ export default function NotaFiscalPage() {
       const timeout = setTimeout(carregarNotas, 400); 
       return () => clearTimeout(timeout);
     }
-  }, [aba, EMPRESA_ID, filtroStatus, filtroBusca, paginaAtual, carregarNotas, carregarKPIs]);
+  }, [aba, EMPRESA_ID, filtroStatus, filtroBusca, filtroTipo, filtroAmbiente, filtroInicio, filtroFim, filtroSerie, filtroValorMin, filtroValorMax, paginaAtual, carregarNotas, carregarKPIs]);
 
   useEffect(() => {
     if (aba === "certificado" && EMPRESA_ID) carregarCertificado();
@@ -801,22 +826,38 @@ export default function NotaFiscalPage() {
               </label>
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, padding: 14, background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: 12 }}>
+              <div><label style={lblStyle}>Tipo</label><select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPaginaAtual(1); }} style={inpStyle}>
+                <option value="TODOS">Todos</option><option value="NFE">NF-e</option><option value="NFCE">NFC-e</option><option value="NFSE">NFS-e</option>
+              </select></div>
+              <div><label style={lblStyle}>Ambiente do documento</label><select value={filtroAmbiente} onChange={e => { setFiltroAmbiente(e.target.value); setPaginaAtual(1); }} style={inpStyle}>
+                <option value="TODOS">Todos</option><option value="PRODUCAO">Produção</option><option value="HOMOLOGACAO">Homologação</option><option value="LEGADO_DESCONHECIDO">Legado — desconhecido</option>
+              </select></div>
+              <StyledInput label="Data inicial" type="date" value={filtroInicio} onChange={e => { setFiltroInicio(e.target.value); setPaginaAtual(1); }} />
+              <StyledInput label="Data final" type="date" value={filtroFim} min={filtroInicio || undefined} onChange={e => { setFiltroFim(e.target.value); setPaginaAtual(1); }} />
+              <StyledInput label="Série" inputMode="numeric" maxLength={3} value={filtroSerie} onChange={e => { setFiltroSerie(e.target.value.replace(/\D/g, "").slice(0, 3)); setPaginaAtual(1); }} />
+              <StyledInput label="Valor mínimo" type="number" min="0" step="0.01" value={filtroValorMin} onChange={e => { setFiltroValorMin(e.target.value); setPaginaAtual(1); }} />
+              <StyledInput label="Valor máximo" type="number" min={filtroValorMin || "0"} step="0.01" value={filtroValorMax} onChange={e => { setFiltroValorMax(e.target.value); setPaginaAtual(1); }} />
+              <button type="button" onClick={() => { setFiltroTipo("TODOS"); setFiltroAmbiente("TODOS"); setFiltroInicio(""); setFiltroFim(""); setFiltroSerie(""); setFiltroValorMin(""); setFiltroValorMax(""); setPaginaAtual(1); }} style={{ ...btnStyle, alignSelf: "end", justifyContent: "center" }}>Limpar filtros</button>
+            </div>
+
             <div style={{ background: theme.bgCard, borderWidth: 1, borderStyle: "solid", borderColor: theme.border, borderRadius: 14, overflow: "hidden", overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
                 <thead style={{ borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border, color: theme.textMuted, fontSize: 11, textTransform: "uppercase" }}>
                   <tr>
                     <th style={{ padding: "16px" }}>Documento</th><th style={{ padding: "16px" }}>Cliente</th><th style={{ padding: "16px" }}>Data</th>
-                    <th style={{ padding: "16px" }}>Valor</th><th style={{ padding: "16px" }}>Status</th><th style={{ padding: "16px", textAlign: "right" }}>Ações</th>
+                    <th style={{ padding: "16px" }}>Valor</th><th style={{ padding: "16px" }}>Ambiente</th><th style={{ padding: "16px" }}>Status</th><th style={{ padding: "16px", textAlign: "right" }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {notasFiltradas.length === 0 && !loading && <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: theme.textMuted }}>Nenhuma nota localizada.</td></tr>}
+                  {notasFiltradas.length === 0 && !loading && <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: theme.textMuted }}>Nenhuma nota localizada.</td></tr>}
                   {notasFiltradas.map(n => (
                     <tr key={n.id} style={{ borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border }}>
                       <td style={{ padding: "16px", fontWeight: 600 }}>{n.numeroNota || "Rascunho"} <span style={{ fontWeight: 400, color: theme.textMuted }}>({n.tipo})</span></td>
                       <td style={{ padding: "16px", color: theme.textMain }}>{n.clienteNome || "Consumidor Padrão"}</td>
                       <td style={{ padding: "16px", color: theme.textMuted }}>{fmtDate(n.dataEmissao)}</td>
                       <td style={{ padding: "16px", fontWeight: 700, color: theme.textMain }}>{fmt(n.valorTotal)}</td>
+                      <td style={{ padding: "16px" }}><AmbienteBadge ambiente={n.ambiente} /></td>
                       <td style={{ padding: "16px" }}><StatusBadge status={n.status} /></td>
                       <td style={{ padding: "16px", display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button onClick={() => setNotaSelecionada(n)} style={btnStyle}><Eye size={14}/> Ver</button>
@@ -1129,6 +1170,7 @@ export default function NotaFiscalPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 13 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border, paddingBottom: 12 }}><span style={{ color: theme.textMuted }}>Cliente:</span><strong style={{ color: theme.textMain }}>{notaSelecionada.clienteNome || "Consumidor Padrão"}</strong></div>
                       <div style={{ display: "flex", justifyContent: "space-between", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border, paddingBottom: 12 }}><span style={{ color: theme.textMuted }}>Status:</span><StatusBadge status={notaSelecionada.status} /></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border, paddingBottom: 12 }}><span style={{ color: theme.textMuted }}>Ambiente:</span><AmbienteBadge ambiente={notaSelecionada.ambiente} /></div>
                       <div style={{ display: "flex", justifyContent: "space-between", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: theme.border, paddingBottom: 12 }}><span style={{ color: theme.textMuted }}>Chave:</span><span style={{ fontFamily: "monospace", color: theme.primary }}>{notaSelecionada.chaveAcesso || "Não gerada"}</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: theme.textMuted }}>Protocolo:</span><strong style={{ fontFamily: "monospace", color: theme.textMain }}>{notaSelecionada.protocolo || "—"}</strong></div>
                       {notaSelecionada.motivoRejeicao && (<div style={{ padding: 12, background: theme.dangerAlpha, color: theme.danger, borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: theme.dangerAlpha }}><strong>Rejeição/Falha:</strong><br/>{notaSelecionada.motivoRejeicao}</div>)}

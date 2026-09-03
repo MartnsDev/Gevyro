@@ -2,6 +2,7 @@ package br.com.gestpro.nota.dto;
 
 import br.com.gestpro.nota.TipoNota;
 import br.com.gestpro.nota.NotaFiscalStatus;
+import br.com.gestpro.nota.DocumentoFiscalAmbiente;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,7 @@ public class NotaFiscalResumoResponse {
     private String serie;
     private TipoNota tipo;
     private NotaFiscalStatus status;
+    private DocumentoFiscalAmbiente ambiente;
     private String clienteNome;
     private String chaveAcesso;
     private BigDecimal valorTotal;
