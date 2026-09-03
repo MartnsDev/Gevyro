@@ -187,6 +187,7 @@ export default function NotaFiscalPage() {
   const [arquivoCert, setArquivoCert] = useState<File | null>(null);
   const [senhaCert, setSenhaCert] = useState("");
   const [certInfo, setCertInfo] = useState<any>(null);
+  const [certificadoConsultado, setCertificadoConsultado] = useState(false);
   const [periodoExport, setPeriodoExport] = useState(new Date().toISOString().slice(0, 7));
   const [tipoSped, setTipoSped] = useState("EFD_ICMS_IPI");
   const [configFiscal, setConfigFiscal] = useState<ConfiguracaoFiscal | null>(null);
@@ -311,12 +312,13 @@ export default function NotaFiscalPage() {
       const resposta = await fetchSeguro(`${API_BASE}/certificado/${EMPRESA_ID}`);
       setCertInfo(resposta?.dados && Object.keys(resposta.dados).length ? resposta.dados : null);
     } catch (e: any) { setErroApi(e.message); }
+    finally { setCertificadoConsultado(true); }
   }, [EMPRESA_ID]);
 
   useEffect(() => {
-    setConfigFiscal(null); setProntidaoFiscal(null); setCscNovo(""); setConfirmarProducao(false);
-    if (EMPRESA_ID) { carregarConfiguracao(); carregarProntidao(); }
-  }, [EMPRESA_ID, carregarConfiguracao, carregarProntidao]);
+    setConfigFiscal(null); setProntidaoFiscal(null); setCertInfo(null); setCertificadoConsultado(false); setCscNovo(""); setConfirmarProducao(false);
+    if (EMPRESA_ID) { carregarConfiguracao(); carregarProntidao(); carregarCertificado(); }
+  }, [EMPRESA_ID, carregarConfiguracao, carregarProntidao, carregarCertificado]);
 
   useEffect(() => {
     setRascunhoPronto(false);
@@ -763,6 +765,19 @@ export default function NotaFiscalPage() {
           </div>
           <Link href="/dashboard?section=configuracoes&settings=suporte" style={{ flexShrink: 0, padding: "8px 12px", borderRadius: 8, background: theme.primary, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>Abrir suporte</Link>
         </div>
+
+        {certificadoConsultado && certInfo && (certInfo.expiraEmBreve === "true" || certInfo.expirado === "true") && (
+          <div role="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 16px", border: `1px solid ${certInfo.expirado === "true" ? theme.danger : theme.warning}`, borderRadius: 12, background: certInfo.expirado === "true" ? theme.dangerAlpha : theme.warningAlpha }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <AlertTriangle size={18} color={certInfo.expirado === "true" ? theme.danger : theme.warning} />
+              <div>
+                <strong style={{ display: "block", fontSize: 13, color: certInfo.expirado === "true" ? theme.danger : theme.warning }}>{certInfo.expirado === "true" ? "Certificado digital expirado" : "Certificado próximo do vencimento"}</strong>
+                <span style={{ fontSize: 12, color: theme.textMuted }}>{certInfo.expirado === "true" ? "A emissão que depende deste certificado está indisponível até a substituição." : `Validade restante: ${certInfo.diasParaExpirar} dias. Planeje a substituição antes do vencimento.`}</span>
+              </div>
+            </div>
+            <button type="button" onClick={() => setAba("certificado")} style={{ ...btnStyle, color: certInfo.expirado === "true" ? theme.danger : theme.warning, borderColor: certInfo.expirado === "true" ? theme.danger : theme.warning }}>Ver certificado</button>
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
           {[
