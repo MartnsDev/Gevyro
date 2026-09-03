@@ -1,6 +1,7 @@
 package br.com.gestpro.nota.controller;
 
 import br.com.gestpro.nota.NotaFiscalStatus;
+import br.com.gestpro.nota.FiscalPermission;
 import br.com.gestpro.nota.dto.*;
 import br.com.gestpro.nota.model.*;
 import br.com.gestpro.nota.service.NotaFiscalInterface;
@@ -36,7 +37,7 @@ public class NotaFiscalController {
     @PostMapping
     public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> criar(@RequestBody CriarNotaRequest request, Authentication auth) {
         try {
-            notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
+            notaFiscalServiceImpl.exigirPermissaoEmpresa(request.getEmpresaId(), auth.getName(), FiscalPermission.EMITIR);
             NotaFiscal nota = notaFiscalService.criar(request);
             fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CRIADO", auth.getName(), "SUCESSO", null);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
@@ -74,7 +75,7 @@ public class NotaFiscalController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable Long id, Authentication auth) {
         try {
-            notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
+            notaFiscalServiceImpl.exigirPermissaoNota(id, auth.getName(), FiscalPermission.EMITIR);
             NotaFiscal nota = notaFiscalService.buscarPorId(id);
             notaFiscalService.excluir(id);
             fiscalAuditService.registrar(nota.getEmpresaId(), id, "RASCUNHO_EXCLUIDO", auth.getName(), "SUCESSO", null);
@@ -91,7 +92,7 @@ public class NotaFiscalController {
             @PathVariable Long id,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             Authentication auth, HttpServletRequest httpRequest) {
-        notaFiscalServiceImpl.validarAcessoNota(id, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoNota(id, auth.getName(), FiscalPermission.EMITIR);
         NotaFiscal nota = fiscalEmissionQueueService.enfileirar(id, idempotencyKey, auth.getName(), httpRequest.getRemoteAddr());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
@@ -99,7 +100,7 @@ public class NotaFiscalController {
     @PostMapping("/cancelar")
     public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> cancelar(@jakarta.validation.Valid @RequestBody CancelarNotaRequest request, Authentication auth, HttpServletRequest httpRequest) {
         NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
-        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.CANCELAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/cancelar");
         try {
             NotaFiscal nota = notaFiscalService.cancelar(request);
@@ -115,7 +116,7 @@ public class NotaFiscalController {
             @jakarta.validation.Valid @RequestBody CartaCorrecaoRequest request,
             Authentication auth, HttpServletRequest httpRequest) {
         NotaFiscal acesso = notaFiscalService.buscarPorId(request.getNotaId());
-        notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.CANCELAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
                 "/api/nota-fiscal/carta-correcao");
         EventoFiscal evento = notaFiscalService.cartaCorrecao(request);
@@ -127,7 +128,7 @@ public class NotaFiscalController {
 
     @PostMapping("/inutilizar")
     public ResponseEntity<ApiResponse<Void>> inutilizar(@jakarta.validation.Valid @RequestBody InutilizarRequest request, Authentication auth, HttpServletRequest httpRequest) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(request.getEmpresaId(), auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(request.getEmpresaId(), auth.getName(), FiscalPermission.INUTILIZAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, request.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/inutilizar");
         notaFiscalService.inutilizar(request);
         fiscalAuditService.registrar(request.getEmpresaId(), null, "NUMERACAO_INUTILIZADA", auth.getName(), "SUCESSO",
@@ -137,7 +138,7 @@ public class NotaFiscalController {
 
     @PostMapping("/transmitir-contingencias")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> transmitirContingencias(@RequestParam Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EMITIR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/transmitir-contingencias");
         int qtd = notaFiscalService.transmitirContingencias(empresaId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("transmitidas", qtd)));
@@ -149,7 +150,7 @@ public class NotaFiscalController {
     public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> importarXml(
             @RequestParam Long empresaId, @RequestParam("arquivo") MultipartFile arquivo,
             Authentication auth, HttpServletRequest httpRequest) throws java.io.IOException {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EMITIR);
         limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest,
                 "/api/nota-fiscal/importar-xml");
         String nome = arquivo == null ? null : arquivo.getOriginalFilename();
@@ -204,7 +205,7 @@ public class NotaFiscalController {
             @RequestParam Long empresaId,
             @RequestParam String periodo, Authentication auth, HttpServletRequest httpRequest
     ) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EXPORTAR);
         limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/xml-mensal");
         try {
             YearMonth ym = YearMonth.parse(periodo);
@@ -227,7 +228,7 @@ public class NotaFiscalController {
             @RequestParam String periodo,
             @RequestParam String tipo, Authentication auth, HttpServletRequest httpRequest
     ) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EXPORTAR);
         limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/sped");
         try {
             YearMonth ym = YearMonth.parse(periodo);
@@ -250,7 +251,7 @@ public class NotaFiscalController {
     @GetMapping("/certificado/{empresaId}")
     public ResponseEntity<ApiResponse<Map<String, String>>> consultarCertificado(
             @PathVariable Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, empresaId, auth, httpRequest,
                 "/api/nota-fiscal/certificado");
         return ResponseEntity.ok(ApiResponse.ok(certificateService.consultar(empresaId)));
@@ -259,7 +260,7 @@ public class NotaFiscalController {
     @DeleteMapping("/certificado/{empresaId}")
     public ResponseEntity<ApiResponse<Void>> excluirCertificado(
             @PathVariable Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
         certificateService.excluir(empresaId);
@@ -273,7 +274,7 @@ public class NotaFiscalController {
             @RequestParam("arquivo") MultipartFile arquivo,
             @RequestParam("senha") String senha, Authentication auth, HttpServletRequest httpRequest
     ) {
-        notaFiscalServiceImpl.validarAcessoEmpresa(empresaId, auth.getName());
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
         try {

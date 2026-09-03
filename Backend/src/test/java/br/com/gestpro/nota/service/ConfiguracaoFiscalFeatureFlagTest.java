@@ -27,8 +27,10 @@ class ConfiguracaoFiscalFeatureFlagTest {
         when(empresas.findByIdWithDono(3L)).thenReturn(Optional.of(empresa));
         ConfiguracaoFiscalEmpresaRepository configs = mock(ConfiguracaoFiscalEmpresaRepository.class);
         when(configs.findByEmpresaId(3L)).thenReturn(Optional.empty());
-        service = new ConfiguracaoFiscalService(configs, empresas, mock(FiscalEncryptionService.class),
-                mock(FiscalAuditService.class), mock(CertificadoDigitalRepository.class));
+        FiscalAuthorizationService authorization = mock(FiscalAuthorizationService.class);
+        when(authorization.exigir(eq(3L), anyString(), any())).thenReturn(empresa);
+        service = new ConfiguracaoFiscalService(configs, mock(FiscalEncryptionService.class),
+                mock(FiscalAuditService.class), mock(CertificadoDigitalRepository.class), authorization);
     }
 
     @Test void exigeConfirmacaoParaEntrarEmProducao() {

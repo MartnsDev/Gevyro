@@ -1,8 +1,8 @@
 package br.com.gestpro.nota.service;
 
 import br.com.gestpro.empresa.model.Empresa;
-import br.com.gestpro.empresa.repository.EmpresaRepository;
 import br.com.gestpro.infra.exception.ApiException;
+import br.com.gestpro.nota.FiscalPermission;
 import br.com.gestpro.nota.dto.ConfiguracaoFiscalRequest;
 import br.com.gestpro.nota.dto.ConfiguracaoFiscalResponse;
 import br.com.gestpro.nota.dto.ProntidaoFiscalResponse;
@@ -23,14 +23,14 @@ import java.util.List;
 @Service @RequiredArgsConstructor
 public class ConfiguracaoFiscalService {
     private final ConfiguracaoFiscalEmpresaRepository repository;
-    private final EmpresaRepository empresaRepository;
     private final FiscalEncryptionService encryptionService;
     private final FiscalAuditService auditService;
     private final CertificadoDigitalRepository certificadoRepository;
+    private final FiscalAuthorizationService authorizationService;
 
     @Transactional(readOnly = true)
     public ConfiguracaoFiscalResponse buscar(Long empresaId, String ator) {
-        validarAcesso(empresaId, ator);
+        authorizationService.exigir(empresaId, ator, FiscalPermission.VISUALIZAR);
         return repository.findByEmpresaId(empresaId).map(this::toResponse)
                 .orElse(new ConfiguracaoFiscalResponse(empresaId, null, null,
                         ConfiguracaoFiscalEmpresa.Ambiente.HOMOLOGACAO, "1", "1", null, false,
@@ -39,7 +39,7 @@ public class ConfiguracaoFiscalService {
 
     @Transactional(readOnly = true)
     public ProntidaoFiscalResponse prontidao(Long empresaId, String ator) {
-        Empresa empresa = validarAcesso(empresaId, ator);
+        Empresa empresa = authorizationService.exigir(empresaId, ator, FiscalPermission.VISUALIZAR);
         ConfiguracaoFiscalEmpresa config = repository.findByEmpresaId(empresaId).orElse(null);
         CertificadoDigital certificado = certificadoRepository.findByEmpresaId(empresaId).orElse(null);
 
@@ -82,7 +82,7 @@ public class ConfiguracaoFiscalService {
 
     @Transactional
     public ConfiguracaoFiscalResponse salvar(Long empresaId, ConfiguracaoFiscalRequest request, String ator) {
-        validarAcesso(empresaId, ator);
+        authorizationService.exigir(empresaId, ator, FiscalPermission.CONFIGURAR);
         ConfiguracaoFiscalEmpresa config = repository.findByEmpresaId(empresaId)
                 .orElseGet(() -> new ConfiguracaoFiscalEmpresa(empresaId));
         validarFlags(request);
@@ -110,13 +110,6 @@ public class ConfiguracaoFiscalService {
         }
     }
 
-    private Empresa validarAcesso(Long empresaId, String ator) {
-        Empresa empresa = empresaRepository.findByIdWithDono(empresaId)
-                .orElseThrow(() -> new ApiException("Empresa não encontrada.", HttpStatus.NOT_FOUND, "/api/fiscal/configuracao"));
-        if (!empresa.getDono().getEmail().equals(ator))
-            throw new ApiException("Sem permissão para a configuração fiscal desta empresa.", HttpStatus.FORBIDDEN, "/api/fiscal/configuracao");
-        return empresa;
-    }
     private ConfiguracaoFiscalResponse toResponse(ConfiguracaoFiscalEmpresa c) {
         return new ConfiguracaoFiscalResponse(c.getEmpresaId(), c.getInscricaoEstadual(), c.getRegimeTributario(),
                 c.getAmbiente(), c.getSerieNfe(), c.getSerieNfce(), c.getCscId(), c.getCscCifrado() != null,

@@ -23,18 +23,20 @@ class ConfiguracaoFiscalProntidaoTest {
     private EmpresaRepository empresas;
     private ConfiguracaoFiscalEmpresaRepository configuracoes;
     private CertificadoDigitalRepository certificados;
+    private FiscalAuthorizationService authorization;
     private ConfiguracaoFiscalService service;
 
     @BeforeEach void setup() {
         empresas = mock(EmpresaRepository.class);
         configuracoes = mock(ConfiguracaoFiscalEmpresaRepository.class);
         certificados = mock(CertificadoDigitalRepository.class);
-        service = new ConfiguracaoFiscalService(configuracoes, empresas, mock(FiscalEncryptionService.class),
-                mock(FiscalAuditService.class), certificados);
+        authorization = mock(FiscalAuthorizationService.class);
+        service = new ConfiguracaoFiscalService(configuracoes, mock(FiscalEncryptionService.class),
+                mock(FiscalAuditService.class), certificados, authorization);
     }
 
     @Test void informaDocumentosProntosSemLiberarNfse() {
-        when(empresas.findByIdWithDono(7L)).thenReturn(Optional.of(empresaCompleta("dono@empresa.com")));
+        when(authorization.exigir(eq(7L), eq("dono@empresa.com"), any())).thenReturn(empresaCompleta("dono@empresa.com"));
         when(configuracoes.findByEmpresaId(7L)).thenReturn(Optional.of(configuracaoCompleta(true)));
         when(certificados.findByEmpresaId(7L)).thenReturn(Optional.of(certificadoVigente()));
 
@@ -48,7 +50,7 @@ class ConfiguracaoFiscalProntidaoTest {
     }
 
     @Test void cscAusenteBloqueiaSomenteNfce() {
-        when(empresas.findByIdWithDono(7L)).thenReturn(Optional.of(empresaCompleta("dono@empresa.com")));
+        when(authorization.exigir(eq(7L), eq("dono@empresa.com"), any())).thenReturn(empresaCompleta("dono@empresa.com"));
         when(configuracoes.findByEmpresaId(7L)).thenReturn(Optional.of(configuracaoCompleta(false)));
         when(certificados.findByEmpresaId(7L)).thenReturn(Optional.of(certificadoVigente()));
 
@@ -61,7 +63,8 @@ class ConfiguracaoFiscalProntidaoTest {
     }
 
     @Test void rejeitaConsultaDeOutraEmpresa() {
-        when(empresas.findByIdWithDono(7L)).thenReturn(Optional.of(empresaCompleta("outro@empresa.com")));
+        when(authorization.exigir(eq(7L), eq("intruso@empresa.com"), any())).thenThrow(new ApiException(
+                "Sem permissão para esta operação fiscal.", org.springframework.http.HttpStatus.FORBIDDEN, "/api/fiscal"));
         assertThatThrownBy(() -> service.prontidao(7L, "intruso@empresa.com"))
                 .isInstanceOf(ApiException.class).hasMessageContaining("Sem permissão");
         verifyNoInteractions(configuracoes, certificados);

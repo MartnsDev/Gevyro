@@ -4,6 +4,7 @@ import br.com.gestpro.infra.exception.ApiException;
 import br.com.gestpro.empresa.model.Empresa;
 import br.com.gestpro.empresa.repository.EmpresaRepository;
 import br.com.gestpro.nota.NotaFiscalStatus;
+import br.com.gestpro.nota.FiscalPermission;
 import br.com.gestpro.nota.RegimeTributario;
 import br.com.gestpro.nota.config.NotaFiscalConfig;
 import br.com.gestpro.nota.dto.*;
@@ -66,21 +67,27 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final ProdutoFiscalService produtoFiscalService;
     private final FiscalFeatureService fiscalFeatureService;
     private final Estatisticas estatisticasService;
+    private final FiscalAuthorizationService fiscalAuthorizationService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
-        if (empresaId == null) throw new ApiException("empresaId é obrigatório.", HttpStatus.BAD_REQUEST, "/api/nota-fiscal");
-        Empresa empresa=empresaRepository.findByIdWithDono(empresaId)
-                .orElseThrow(()->new ApiException("Empresa não encontrada.",HttpStatus.NOT_FOUND,"/api/nota-fiscal"));
-        if (!empresa.getDono().getEmail().equals(emailUsuario))
-            throw new ApiException("Sem permissão para acessar os dados fiscais desta empresa.",HttpStatus.FORBIDDEN,"/api/nota-fiscal");
-        if (!Boolean.TRUE.equals(empresa.getAtivo()))
-            throw new ApiException("Esta empresa está arquivada.",HttpStatus.CONFLICT,"/api/nota-fiscal");
+        exigirPermissaoEmpresa(empresaId, emailUsuario, FiscalPermission.VISUALIZAR);
+    }
+
+    @Transactional(readOnly = true)
+    public void exigirPermissaoEmpresa(Long empresaId, String emailUsuario, FiscalPermission permission) {
+        fiscalAuthorizationService.exigir(empresaId, emailUsuario, permission);
     }
 
     @Transactional(readOnly = true)
     public void validarAcessoNota(Long notaId,String emailUsuario){
         NotaFiscal nota=buscarPorId(notaId);validarAcessoEmpresa(nota.getEmpresaId(),emailUsuario);
+    }
+
+    @Transactional(readOnly = true)
+    public void exigirPermissaoNota(Long notaId, String emailUsuario, FiscalPermission permission) {
+        NotaFiscal nota = buscarPorId(notaId);
+        exigirPermissaoEmpresa(nota.getEmpresaId(), emailUsuario, permission);
     }
 
     // CRUD BÁSICO
@@ -156,10 +163,10 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     public Long validarAcessoVendaFiscal(Long vendaId, String ator) {
         var venda = vendaRepository.findById(vendaId)
                 .orElseThrow(() -> new ApiException("Venda não encontrada.", HttpStatus.NOT_FOUND, "/api/nota-fiscal/vendas"));
-        if (venda.getEmpresa() == null || venda.getEmpresa().getDono() == null
-                || !venda.getEmpresa().getDono().getEmail().equalsIgnoreCase(ator))
-            throw new ApiException("Sem permissão para emitir documento desta venda.", HttpStatus.FORBIDDEN, "/api/nota-fiscal/vendas");
-        return venda.getEmpresa().getId();
+        if (venda.getEmpresa() == null) throw new ApiException("Venda sem empresa vinculada.", HttpStatus.CONFLICT, "/api/nota-fiscal/vendas");
+        Long empresaId = venda.getEmpresa().getId();
+        exigirPermissaoEmpresa(empresaId, ator, FiscalPermission.EMITIR);
+        return empresaId;
     }
 
     private br.com.gestpro.nota.FormaPagamento mapearPagamento(br.com.gestpro.caixa.FormaDePagamento pagamento) {
