@@ -1,0 +1,15 @@
+meta {
+  name: Consultar nota
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/nota-fiscal/{{notaId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Prontidão fiscal
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/fiscal/configuracao/{{empresaId}}/prontidao
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

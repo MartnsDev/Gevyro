@@ -42,6 +42,8 @@ public class DocumentationSwagger { // <--- Nome da classe
                 // Tags principais da documentação
                 .addTagsItem(new Tag().name("Autenticação").description("Endpoints de login, cadastro e tokens"))
                 .addTagsItem(new Tag().name("Usuário").description("Operações relacionadas ao usuário"))
-                .addTagsItem(new Tag().name("Planos").description("Controle de acesso e tipo de plano"));
+                .addTagsItem(new Tag().name("Planos").description("Controle de acesso e tipo de plano"))
+                .addTagsItem(new Tag().name("Fiscal").description("Documentos fiscais, eventos, consultas e exportações"))
+                .addTagsItem(new Tag().name("Configuração fiscal").description("Emitente, certificado, ambiente e rollout por empresa"));
     }
 }

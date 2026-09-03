@@ -10,6 +10,7 @@ Este registro impede que layouts e regras fiscais sejam tratados como conhecimen
 - Manual de Orientação do Contribuinte: versão 7.0.
 - Pacote oficial embarcado: `PL_010f_v1.04`, publicado em 2026-08-31, contemplando NT 2025.002 v1.50 e NT 2026.007 v1.00. O ZIP de origem e seu SHA-256 estão registrados junto aos XSDs.
 - Informe Técnico rastreado: 2025.002 v1.60.
+- QR Code NFC-e: leiaute v3; em contingência offline, os sete parâmetros e a assinatura RSA-SHA1 seguem a NT 2025.001. O algoritmo legado é usado somente porque é mandatório nesse campo.
 - Serviços que a implementação direta deve tratar separadamente: autorização, retorno da autorização, inutilização, consulta protocolo/situação, status do serviço e recepção de eventos.
 - Relação de autorizadores e endpoints não possui fallback universal: cada UF/autorizador, ambiente, modelo e serviço precisa de uma entrada oficial versionada.
 
@@ -18,6 +19,8 @@ Fontes oficiais:
 - Portal Nacional, schemas: https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=BMPFMBoln3w=
 - Portal Nacional, Web Services: https://www.nfe.fazenda.gov.br/portal/webServices.aspx
 - Informe Técnico 2025.002 v1.60: https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=jxTMMQeEVM8=
+- Manuais atuais do Portal Nacional: https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=ndIjl+iEFdE=
+- Especificação oficial de QR Code v3 (SEFA/PR): https://sped.fazenda.pr.gov.br/NFCe/Pagina/QR-Code
 
 ## NFS-e Padrão Nacional
 
