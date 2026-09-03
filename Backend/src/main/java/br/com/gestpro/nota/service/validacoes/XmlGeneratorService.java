@@ -51,6 +51,12 @@ public class XmlGeneratorService {
                               List<ItemNotaFiscal> itens,
                               String chaveAcesso,
                               boolean homologacao) {
+        return gerarXmlNfe(nota, empresa, itens, chaveAcesso, homologacao, null);
+    }
+
+    public String gerarXmlNfe(NotaFiscal nota, EmpresaInfo empresa, List<ItemNotaFiscal> itens,
+                              String chaveAcesso, boolean homologacao,
+                              NfceQrCodeService.DadosQrCode qrCodeOffline) {
 
         boolean isNfce          = TipoNota.NFCE.equals(nota.getTipo());
         boolean isSimplesNacional = RegimeTributario.SIMPLES_NACIONAL.equals(empresa.getRegimeTributario())
@@ -77,7 +83,7 @@ public class XmlGeneratorService {
         appendInfoAdicionais(xml, nota);
 
         xml.append("</infNFe>");
-        if (isNfce) appendNfceSuplementar(xml, nota, empresa, chaveAcesso, homologacao);
+        if (isNfce) appendNfceSuplementar(xml, nota, empresa, chaveAcesso, homologacao, qrCodeOffline);
         xml.append("</NFe>");
 
         log.debug("XML da NF-e gerado com {} bytes.", xml.length());
@@ -106,6 +112,14 @@ public class XmlGeneratorService {
         xml.append("<cMunFG>").append(empresa.getCodigoIbge()).append("</cMunFG>");
         xml.append("<tpImp>").append(isNfce ? "4" : "1").append("</tpImp>"); // 4=NFC-e; 1=DANFE retrato
         xml.append("<tpEmis>").append(Boolean.TRUE.equals(nota.getEmContingencia()) ? "9" : "1").append("</tpEmis>");
+        if (Boolean.TRUE.equals(nota.getEmContingencia())) {
+            if (!isNfce || nota.getDataInicioContingencia() == null
+                    || nota.getJustificativaContingencia() == null
+                    || nota.getJustificativaContingencia().trim().length() < 15)
+                throw new IllegalArgumentException("Contingência NFC-e exige data de início e justificativa com ao menos 15 caracteres.");
+            xml.append("<dhCont>").append(nota.getDataInicioContingencia().atZone(ZONE_BR).format(DT_FORMAT)).append("</dhCont>");
+            xml.append("<xJust>").append(esc(nota.getJustificativaContingencia().trim())).append("</xJust>");
+        }
         xml.append("<cDV>").append(chaveAcesso.charAt(43)).append("</cDV>");
         xml.append("<tpAmb>").append(homologacao ? "2" : "1").append("</tpAmb>");
         xml.append("<finNFe>1</finNFe>");           // 1 = Normal
@@ -334,10 +348,18 @@ public class XmlGeneratorService {
     }
 
     private void appendNfceSuplementar(StringBuilder xml, NotaFiscal nota, EmpresaInfo empresa,
-                                       String chaveAcesso, boolean homologacao) {
-        if (Boolean.TRUE.equals(nota.getEmContingencia()))
-            throw new IllegalStateException("NFC-e em contingência offline ainda não possui QR Code v3 assinado e não pode ser gerada.");
-        NfceQrCodeService.DadosQrCode dados = nfceQrCodeService.gerarOnline(chaveAcesso, empresa.getUf(), homologacao);
+                                       String chaveAcesso, boolean homologacao,
+                                       NfceQrCodeService.DadosQrCode qrCodeOffline) {
+        NfceQrCodeService.DadosQrCode dados;
+        if (Boolean.TRUE.equals(nota.getEmContingencia())) {
+            if (qrCodeOffline == null)
+                throw new IllegalStateException("NFC-e offline exige QR Code v3 assinado.");
+            dados = qrCodeOffline;
+        } else {
+            if (qrCodeOffline != null)
+                throw new IllegalArgumentException("QR Code offline não pode ser usado em emissão normal.");
+            dados = nfceQrCodeService.gerarOnline(chaveAcesso, empresa.getUf(), homologacao);
+        }
         xml.append("<infNFeSupl><qrCode><![CDATA[").append(dados.qrCodeUrl())
                 .append("]]></qrCode><urlChave>").append(esc(dados.consultaUrl()))
                 .append("</urlChave></infNFeSupl>");

@@ -161,6 +161,9 @@ public class NotaFiscal {
     @Column(name = "em_contingencia")
     private Boolean emContingencia = false;
 
+    @Column(name = "data_inicio_contingencia")
+    private LocalDateTime dataInicioContingencia;
+
     @Column(name = "justificativa_contingencia", length = 500)
     private String justificativaContingencia;
 

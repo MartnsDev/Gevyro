@@ -76,15 +76,36 @@ class XmlGeneratorEnvironmentTest {
     }
 
     @Test
-    void bloqueiaNfceOfflineEnquantoAssinaturaQrNaoEstaImplementada() {
+    void bloqueiaNfceOfflineSemQrAssinado() {
         NotaFiscal nota = NotaFiscal.builder().tipo(TipoNota.NFCE).serie("1").numeroNota(2L)
                 .dataEmissao(LocalDateTime.now()).naturezaOperacao("Venda").formaPagamento(FormaPagamento.PIX)
-                .valorTotal(BigDecimal.ONE).emContingencia(true).build();
+                .valorTotal(BigDecimal.ONE).emContingencia(true)
+                .dataInicioContingencia(LocalDateTime.of(2026, 9, 3, 12, 0))
+                .justificativaContingencia("Indisponibilidade comprovada da autorizadora").build();
         EmpresaInfo empresa = EmpresaInfo.builder().cnpj("12345678000195").razaoSocial("Empresa")
                 .logradouro("Rua").numero("1").bairro("Centro").codigoIbge("3550308").municipio("São Paulo")
                 .uf("SP").cep("01001000").inscricaoEstadual("110042490114").regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
         assertThatThrownBy(() -> service.gerarXmlNfe(nota, empresa, List.of(),
                 "35260912345678000195650010000000029999999990", true))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("contingência offline");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("QR Code v3 assinado");
+    }
+
+    @Test void incluiDadosObrigatoriosDaContingenciaESeuQrAssinado() {
+        NotaFiscal nota = NotaFiscal.builder().tipo(TipoNota.NFCE).serie("1").numeroNota(2L)
+                .dataEmissao(LocalDateTime.of(2026, 9, 3, 11, 0)).naturezaOperacao("Venda")
+                .formaPagamento(FormaPagamento.PIX).valorTotal(BigDecimal.ONE).emContingencia(true)
+                .dataInicioContingencia(LocalDateTime.of(2026, 9, 3, 12, 0))
+                .justificativaContingencia("Indisponibilidade comprovada da autorizadora").build();
+        EmpresaInfo empresa = EmpresaInfo.builder().cnpj("12345678000195").razaoSocial("Empresa")
+                .logradouro("Rua").numero("1").bairro("Centro").codigoIbge("3550308").municipio("São Paulo")
+                .uf("SP").cep("01001000").inscricaoEstadual("110042490114").regimeTributario(RegimeTributario.SIMPLES_NACIONAL).build();
+        var qr = new NfceQrCodeService.DadosQrCode("https://exemplo.invalid/?p=assinado",
+                "https://consulta.invalid", "3.00", false);
+        String xml = service.gerarXmlNfe(nota, empresa, List.of(),
+                "35260912345678000195650010000000029999999990", true, qr);
+        assertThat(xml).contains("<tpEmis>9</tpEmis>")
+                .contains("<dhCont>2026-09-03T12:00:00-03:00</dhCont>")
+                .contains("<xJust>Indisponibilidade comprovada da autorizadora</xJust>")
+                .contains("<![CDATA[https://exemplo.invalid/?p=assinado]]>");
     }
 }

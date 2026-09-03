@@ -26,6 +26,9 @@ public interface NotaFiscalInterface {
      */
     NotaFiscal emitir(Long notaId);
 
+    /** Gera, assina e preserva a NFC-e offline localmente, sem transmiti-la. */
+    NotaFiscal emitirContingenciaOffline(Long notaId, String justificativa);
+
     /**
      * Cancela uma nota autorizada (dentro do prazo legal de 24h).
      */

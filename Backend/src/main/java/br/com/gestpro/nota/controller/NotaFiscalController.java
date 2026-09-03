@@ -146,11 +146,30 @@ public class NotaFiscalController {
     }
 
     @PostMapping("/transmitir-contingencias")
-    public ResponseEntity<ApiResponse<Map<String, Integer>>> transmitirContingencias(@RequestParam Long empresaId, Authentication auth, HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> transmitirContingencias(@RequestParam Long empresaId,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EMITIR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/transmitir-contingencias");
+        fiscalStepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
         int qtd = notaFiscalService.transmitirContingencias(empresaId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("transmitidas", qtd)));
+    }
+
+    @PostMapping("/{id}/contingencia-offline")
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> contingenciaOffline(@PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody ContingenciaOfflineRequest request,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.EMITIR);
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
+                "/api/nota-fiscal/contingencia-offline");
+        fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
+        NotaFiscal nota = notaFiscalService.emitirContingenciaOffline(id, request.justificativa());
+        fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "CONTINGENCIA_OFFLINE_GERADA",
+                auth.getName(), "SUCESSO", null);
+        return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     // DOWNLOADS

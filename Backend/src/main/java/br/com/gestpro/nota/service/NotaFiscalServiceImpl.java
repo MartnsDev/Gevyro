@@ -68,6 +68,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final FiscalFeatureService fiscalFeatureService;
     private final Estatisticas estatisticasService;
     private final FiscalAuthorizationService fiscalAuthorizationService;
+    private final NfceQrCodeService nfceQrCodeService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -302,7 +303,11 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             // 4. Montagem do XML (Assinatura Nua)
             log.info("Iniciando geração do XML da NF-e ID={}", notaId);
             boolean homologacao = isHomologacao(nota.getEmpresaId());
-            String xmlBruto = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chaveFinal, homologacao);
+            NfceQrCodeService.DadosQrCode qrOffline = Boolean.TRUE.equals(nota.getEmContingencia())
+                    ? nfceQrCodeService.gerarOffline(chaveFinal, empresa.getUf(), homologacao,
+                    nota.getDataEmissao(), nota.getValorTotal(), nota.getClienteCpfCnpj(), certBytes, senhaCert)
+                    : null;
+            String xmlBruto = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chaveFinal, homologacao, qrOffline);
 
             // 5. Assinatura Digital do XML
             log.info("Assinando digitalmente o XML com o certificado da empresa...");
@@ -343,6 +348,53 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                     HttpStatus.BAD_GATEWAY,
                     "/api/nota-fiscal/emitir"
             );
+        }
+    }
+
+    @Override
+    public NotaFiscal emitirContingenciaOffline(Long notaId, String justificativa) {
+        NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(notaId)
+                .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND,
+                        "/api/nota-fiscal/contingencia-offline"));
+        fiscalFeatureService.validarEmissaoHabilitada(nota.getEmpresaId(), nota.getTipo());
+        if (nota.getTipo() != br.com.gestpro.nota.TipoNota.NFCE)
+            throw new ApiException("Contingência offline local é exclusiva para NFC-e.", HttpStatus.UNPROCESSABLE_ENTITY,
+                    "/api/nota-fiscal/contingencia-offline");
+        if (nota.getStatus() != NotaFiscalStatus.DIGITACAO)
+            throw new ApiException("Somente uma NFC-e em digitação pode iniciar contingência offline.", HttpStatus.CONFLICT,
+                    "/api/nota-fiscal/contingencia-offline");
+        String motivo = justificativa == null ? "" : justificativa.trim();
+        if (motivo.length() < 15 || motivo.length() > 255)
+            throw new ApiException("Informe uma justificativa entre 15 e 255 caracteres.", HttpStatus.BAD_REQUEST,
+                    "/api/nota-fiscal/contingencia-offline");
+
+        EmpresaInfo empresa = buscarEmpresaInfo(nota.getEmpresaId());
+        List<ItemNotaFiscal> itens = itemRepository.findByNotaFiscalId(nota.getId());
+        if (itens.isEmpty())
+            throw new ApiException("Não é possível emitir uma NFC-e sem itens.", HttpStatus.BAD_REQUEST,
+                    "/api/nota-fiscal/contingencia-offline");
+
+        try (CertificateService.Material material = certificateService.carregar(nota.getEmpresaId())) {
+            nota.setEmContingencia(true);
+            nota.setDataInicioContingencia(LocalDateTime.now());
+            nota.setJustificativaContingencia(motivo);
+            String chave = gerarChaveAcesso.gerar(nota, empresa.getCnpj(), GerarChaveAcesso.getCodigoUf(empresa.getUf()));
+            nota.setChaveAcesso(chave);
+            boolean homologacao = isHomologacao(nota.getEmpresaId());
+            var qr = nfceQrCodeService.gerarOffline(chave, empresa.getUf(), homologacao, nota.getDataEmissao(),
+                    nota.getValorTotal(), nota.getClienteCpfCnpj(), material.arquivo(), material.senha());
+            String xml = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chave, homologacao, qr);
+            String assinado = assinaturaService.assinarXml(xml, material.arquivo(), material.senha());
+            xsdValidationService.validarNfeAssinada(assinado);
+            nota.setXmlEnviado(assinado);
+            nota.setStatus(NotaFiscalStatus.CONTINGENCIA);
+            nota.setMotivoRejeicao(null);
+            return notaFiscalRepository.save(nota);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException("Não foi possível gerar a NFC-e offline com segurança.",
+                    HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/contingencia-offline");
         }
     }
 
@@ -628,15 +680,6 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             log.warn("REJEIÇÃO SEFAZ! Código: {} - Motivo: {}", retorno.getCodigo(), retorno.getMensagem());
         }
 
-        return notaFiscalRepository.save(nota);
-    }
-
-    private NotaFiscal processarContingencia(NotaFiscal nota, String xmlAssinado) {
-        nota.setEmContingencia(true);
-        nota.setStatus(NotaFiscalStatus.CONTINGENCIA);
-        nota.setJustificativaContingencia("Queda de conectividade de rede com a SEFAZ.");
-        nota.setXmlEnviado(xmlAssinado); // Salva o XML pra transmitir depois
-        log.info("NF-e salva em modo de CONTINGÊNCIA: ID={}. Ela deve ser transmitida em até 24h.", nota.getId());
         return notaFiscalRepository.save(nota);
     }
 
