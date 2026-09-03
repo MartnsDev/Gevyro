@@ -156,7 +156,7 @@ export default function NotaFiscalPage() {
   const [notas, setNotas] = useState<any[]>([]);
   const [paginacao, setPaginao] = useState<any>(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [estatisticas, setEstatisticas] = useState({ totalAutorizadas: 0, totalRejeitadas: 0, totalCanceladas: 0, valorTotalMes: 0 });
+  const [estatisticas, setEstatisticas] = useState({ totalAutorizadas: 0, totalRejeitadas: 0, totalCanceladas: 0, totalAguardando: 0, totalErros: 0, valorTotalMes: 0 });
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroBusca, setFiltroBusca] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("TODOS");
@@ -769,6 +769,8 @@ export default function NotaFiscalPage() {
             { label: "Faturamento (Mês)", val: fmt(estatisticas.valorTotalMes), ic: <TrendingUp size={16} />, cor: theme.primary },
             { label: "NF Autorizadas", val: estatisticas.totalAutorizadas, ic: <CheckCircle size={16} />, cor: "#34d399" },
             { label: "NF Rejeitadas", val: estatisticas.totalRejeitadas, ic: <AlertTriangle size={16} />, cor: theme.danger },
+            { label: "Aguardando processamento", val: estatisticas.totalAguardando, ic: <Loader2 size={16} />, cor: "#3b82f6" },
+            { label: "Erros técnicos", val: estatisticas.totalErros, ic: <AlertTriangle size={16} />, cor: theme.danger },
             { label: "NF Canceladas", val: estatisticas.totalCanceladas, ic: <XCircle size={16} />, cor: theme.textMuted }
           ].map((k, i) => (
              <div key={i} style={{ background: theme.bgCard, borderWidth: 1, borderStyle: "solid", borderColor: theme.border, borderRadius: 14, padding: "16px 20px" }}>

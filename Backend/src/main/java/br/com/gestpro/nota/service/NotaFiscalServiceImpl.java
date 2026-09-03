@@ -65,6 +65,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final VendaRepository vendaRepository;
     private final ProdutoFiscalService produtoFiscalService;
     private final FiscalFeatureService fiscalFeatureService;
+    private final Estatisticas estatisticasService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -570,12 +571,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     @Override
     @Transactional(readOnly = true)
     public EstatisticasResponse getEstatisticas(Long empresaId) {
-        long autorizadas=notaFiscalRepository.countByEmpresaIdAndStatus(empresaId,NotaFiscalStatus.AUTORIZADA);
-        long rejeitadas=notaFiscalRepository.countByEmpresaIdAndStatus(empresaId,NotaFiscalStatus.REJEITADA);
-        long canceladas=notaFiscalRepository.countByEmpresaIdAndStatus(empresaId,NotaFiscalStatus.CANCELADA);
-        LocalDateTime inicio=YearMonth.now().atDay(1).atStartOfDay();
-        java.math.BigDecimal valor=notaFiscalRepository.sumValorAutorizadasByPeriodo(empresaId,inicio).orElse(java.math.BigDecimal.ZERO);
-        return EstatisticasResponse.builder().totalAutorizadas(autorizadas).totalRejeitadas(rejeitadas).totalCanceladas(canceladas).valorTotalMes(valor).build();
+        return estatisticasService.calcularEstatisticas(empresaId);
     }
 
     @Override

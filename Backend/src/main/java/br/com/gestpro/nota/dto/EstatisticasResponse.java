@@ -17,6 +17,8 @@ public class EstatisticasResponse {
     private long totalAutorizadas;
     private long totalRejeitadas;
     private long totalCanceladas;
+    private long totalAguardando;
+    private long totalErros;
     private BigDecimal valorTotalMes;
 
 }

@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * Serviço responsável por calcular as estatísticas do Dashboard de notas fiscais.
@@ -31,12 +33,17 @@ public class Estatisticas {
 
         log.info("Calculando métricas do dashboard fiscal para a Empresa ID={}", empresaId);
 
-        // 1. Contagens rápidas por status (Adequado aos novos Enums)
-        long autorizadas = notaRepo.countByEmpresaIdAndStatus(empresaId, NotaFiscalStatus.AUTORIZADA);
-        long rejeitadas  = notaRepo.countByEmpresaIdAndStatus(empresaId, NotaFiscalStatus.REJEITADA);
-        long canceladas  = notaRepo.countByEmpresaIdAndStatus(empresaId, NotaFiscalStatus.CANCELADA);
-
-        // Se quiser exibir os rascunhos no front, basta usar a mesma lógica com NotaFiscalStatus.DIGITACAO
+        Map<NotaFiscalStatus, Long> totais = new EnumMap<>(NotaFiscalStatus.class);
+        for (Object[] linha : notaRepo.countByStatus(empresaId)) {
+            totais.put((NotaFiscalStatus) linha[1], ((Number) linha[0]).longValue());
+        }
+        long autorizadas = total(totais, NotaFiscalStatus.AUTORIZADA);
+        long rejeitadas = total(totais, NotaFiscalStatus.REJEITADA);
+        long canceladas = total(totais, NotaFiscalStatus.CANCELADA);
+        long aguardando = total(totais, NotaFiscalStatus.PENDENTE_EMISSAO)
+                + total(totais, NotaFiscalStatus.VALIDANDO)
+                + total(totais, NotaFiscalStatus.PROCESSANDO);
+        long erros = total(totais, NotaFiscalStatus.ERRO_TECNICO);
 
         // 2. Cálculo do Faturamento do mês corrente
         LocalDate hoje = LocalDate.now();
@@ -57,7 +64,13 @@ public class Estatisticas {
                 .totalAutorizadas(autorizadas)
                 .totalRejeitadas(rejeitadas)
                 .totalCanceladas(canceladas)
+                .totalAguardando(aguardando)
+                .totalErros(erros)
                 .valorTotalMes(valorMes)
                 .build();
+    }
+
+    private long total(Map<NotaFiscalStatus, Long> totais, NotaFiscalStatus status) {
+        return totais.getOrDefault(status, 0L);
     }
 }
