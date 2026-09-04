@@ -607,6 +607,29 @@ export default function NotaFiscalPage() {
     } catch (e: any) { setErroApi(e.message); }
   };
 
+  const handlePrepararEmailFiscal = async (nota: any) => {
+    if (nota?.status !== "AUTORIZADA" && nota?.status !== "CANCELADA") return;
+    const informado = window.prompt("Confirme o e-mail que deverá receber os documentos fiscais:", configFiscal?.emailFiscal || "");
+    if (informado === null) return;
+    const destinatario = informado.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinatario) || destinatario.length > 254) {
+      setErroApi("Informe um endereço de e-mail válido."); return;
+    }
+    if (!window.confirm(`Preparar a entrega fiscal para ${destinatario}? O envio externo permanece desativado até configuração operacional.`)) return;
+    const confirmation = await confirmarIdentidade();
+    if (!confirmation) return;
+    try {
+      const resposta = await fetchSeguro(`${API_BASE}/${nota.id}/entregas/email`, {
+        method: "POST", headers: { "X-Fiscal-Confirmation": confirmation },
+        body: JSON.stringify({ destinatario, confirmarDestinatario: true }),
+      });
+      const status = resposta?.dados?.status || "AGUARDANDO_CONFIGURACAO";
+      toast.success(status === "AGUARDANDO_CONFIGURACAO"
+        ? "Entrega protegida e registrada; nenhum e-mail foi enviado."
+        : "Entrega fiscal registrada na fila autorizada.");
+    } catch (e: any) { setErroApi(e.message); }
+  };
+
   const abrirCartaCorrecao = (nota: any) => {
     if (nota?.tipo !== "NFE" || nota?.status !== "AUTORIZADA") return;
     setNotaSelecionada(null);
@@ -1292,6 +1315,7 @@ export default function NotaFiscalPage() {
                           <>
                              {(notaSelecionada.tipo === "NFE" || notaSelecionada.tipo === "NFCE") && <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/danfe`, `danfe-${notaSelecionada.numeroNota}.pdf`)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.primary,borderColor:theme.primaryAlpha }}><FileText size={16}/> DANFE</button>}
                              {notaSelecionada.tipo === "NFE" && <button onClick={() => abrirCartaCorrecao(notaSelecionada)} style={{ ...btnStyle, flex:1,justifyContent:"center",color:theme.warning,borderColor:theme.warningAlpha }}><FilePenLine size={16}/> CC-e</button>}
+                             <button onClick={() => handlePrepararEmailFiscal(notaSelecionada)} style={{ ...btnStyle, flex: 1, justifyContent: "center" }}><Send size={16}/> E-mail</button>
                              <button onClick={() => fazerDownloadSeguro(`${API_BASE}/${notaSelecionada.id}/xml`, `nf-${notaSelecionada.numeroNota}.xml`)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.primary, borderColor: theme.primaryAlpha }}><Download size={16}/> XML</button>
                              <button onClick={() => handleCancelar(notaSelecionada.id)} style={{ ...btnStyle, flex: 1, justifyContent: "center", color: theme.danger, borderColor: theme.dangerAlpha, background: theme.dangerAlpha }}><Trash2 size={16}/> Cancelar</button>
                           </>
