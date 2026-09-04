@@ -45,10 +45,20 @@ public class FiscalXmlService {
     }
 
     public void armazenarAutorizado(Long empresaId, Long documentoId, String xml, String versao, String provedor) {
+        armazenar(empresaId, documentoId, XmlFiscal.Tipo.AUTORIZADO, xml, versao, provedor);
+    }
+
+    public void armazenarContingencia(Long empresaId, Long documentoId, String xml) {
+        armazenar(empresaId, documentoId, XmlFiscal.Tipo.CONTINGENCIA, xml,
+                FiscalSpecificationVersion.NFE_LAYOUT, "NFCe_OFFLINE");
+    }
+
+    private void armazenar(Long empresaId, Long documentoId, XmlFiscal.Tipo tipo,
+                           String xml, String versao, String provedor) {
         byte[] plain = xml.getBytes(StandardCharsets.UTF_8);
         try {
             String hash = hex(sha256(plain));
-            XmlFiscal existente = repository.findByDocumentoIdAndTipo(documentoId, XmlFiscal.Tipo.AUTORIZADO).orElse(null);
+            XmlFiscal existente = repository.findByDocumentoIdAndTipo(documentoId, tipo).orElse(null);
             if (existente != null) {
                 if (!MessageDigest.isEqual(hash.getBytes(StandardCharsets.US_ASCII),
                         existente.getSha256().getBytes(StandardCharsets.US_ASCII)))
@@ -56,14 +66,22 @@ public class FiscalXmlService {
                 return;
             }
             var encrypted = encryption.encrypt(plain);
-            repository.save(new XmlFiscal(empresaId, documentoId, XmlFiscal.Tipo.AUTORIZADO,
+            repository.save(new XmlFiscal(empresaId, documentoId, tipo,
                     encrypted.cipherText(), encrypted.nonce(), hash, versao, provedor));
         } finally { Arrays.fill(plain, (byte) 0); }
     }
 
     public byte[] carregarAutorizado(Long documentoId) {
-        XmlFiscal xml = repository.findByDocumentoIdAndTipo(documentoId, XmlFiscal.Tipo.AUTORIZADO)
-                .orElseThrow(() -> new IllegalStateException("XML autorizado não foi preservado."));
+        return carregar(documentoId, XmlFiscal.Tipo.AUTORIZADO, "XML autorizado não foi preservado.");
+    }
+
+    public byte[] carregarContingencia(Long documentoId) {
+        return carregar(documentoId, XmlFiscal.Tipo.CONTINGENCIA, "XML de contingência não foi preservado.");
+    }
+
+    private byte[] carregar(Long documentoId, XmlFiscal.Tipo tipo, String ausente) {
+        XmlFiscal xml = repository.findByDocumentoIdAndTipo(documentoId, tipo)
+                .orElseThrow(() -> new IllegalStateException(ausente));
         byte[] plain = encryption.decrypt(xml.getConteudoCifrado(), xml.getNonce());
         byte[] esperado = xml.getSha256().getBytes(StandardCharsets.US_ASCII);
         byte[] atual = hex(sha256(plain)).getBytes(StandardCharsets.US_ASCII);

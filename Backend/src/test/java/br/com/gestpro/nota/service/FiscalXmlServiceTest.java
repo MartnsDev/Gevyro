@@ -48,6 +48,42 @@ class FiscalXmlServiceTest {
     }
 
     @Test
+    void preservaContingenciaCifradaParaRetransmissaoExata() {
+        String xml = "<NFe xmlns=\"http://www.portalfiscal.inf.br/nfe\"><infNFe Id=\"NFe-original\"/></NFe>";
+        when(repository.findByDocumentoIdAndTipo(9L, XmlFiscal.Tipo.CONTINGENCIA)).thenReturn(Optional.empty());
+        ArgumentCaptor<XmlFiscal> captor = ArgumentCaptor.forClass(XmlFiscal.class);
+
+        service.armazenarContingencia(3L, 9L, xml);
+
+        verify(repository).save(captor.capture());
+        XmlFiscal salvo = captor.getValue();
+        assertThat(salvo.getTipo()).isEqualTo(XmlFiscal.Tipo.CONTINGENCIA);
+        assertThat(salvo.getProvider()).isEqualTo("NFCe_OFFLINE");
+        assertThat(new String(salvo.getConteudoCifrado(), StandardCharsets.UTF_8)).doesNotContain("NFe-original");
+
+        when(repository.findByDocumentoIdAndTipo(9L, XmlFiscal.Tipo.CONTINGENCIA)).thenReturn(Optional.of(salvo));
+        byte[] recuperado = service.carregarContingencia(9L);
+        assertThat(new String(recuperado, StandardCharsets.UTF_8)).isEqualTo(xml);
+    }
+
+    @Test
+    void impedeSubstituirContingenciaPorDocumentoDiferente() {
+        String original = "<NFe>original</NFe>";
+        when(repository.findByDocumentoIdAndTipo(9L, XmlFiscal.Tipo.CONTINGENCIA)).thenReturn(Optional.empty());
+        ArgumentCaptor<XmlFiscal> captor = ArgumentCaptor.forClass(XmlFiscal.class);
+        service.armazenarContingencia(3L, 9L, original);
+        verify(repository).save(captor.capture());
+
+        when(repository.findByDocumentoIdAndTipo(9L, XmlFiscal.Tipo.CONTINGENCIA))
+                .thenReturn(Optional.of(captor.getValue()));
+
+        assertThatThrownBy(() -> service.armazenarContingencia(3L, 9L, "<NFe>alterado</NFe>"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("imutável");
+        verify(repository, times(1)).save(any());
+    }
+
+    @Test
     void rejeitaDoctypeAntesDeProcessarXml() {
         String malicioso = "<!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/passwd\">]><NFe xmlns=\"http://www.portalfiscal.inf.br/nfe\">&e;</NFe>";
         assertThatThrownBy(() -> service.montarNfeProc(malicioso, "<ret/>")).isInstanceOf(IllegalStateException.class);

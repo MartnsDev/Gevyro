@@ -296,6 +296,21 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             nota.setStatus(NotaFiscalStatus.VALIDANDO);
             notaFiscalRepository.save(nota);
 
+            boolean homologacao = isHomologacao(nota.getEmpresaId());
+            if (Boolean.TRUE.equals(nota.getEmContingencia()) && nota.getChaveAcesso() != null) {
+                byte[] xmlOriginal = fiscalXmlService.carregarContingencia(nota.getId());
+                try {
+                    String xmlAssinado = new String(xmlOriginal, java.nio.charset.StandardCharsets.UTF_8);
+                    xsdValidationService.validarNfeAssinada(xmlAssinado);
+                    nota.setStatus(NotaFiscalStatus.PROCESSANDO);
+                    notaFiscalRepository.save(nota);
+                    FiscalProvider provider = fiscalProviderRegistry.oficialPara(nota.getTipo());
+                    FiscalProvider.AutorizacaoResultado resultado = provider.autorizar(new FiscalProvider.AutorizacaoComando(
+                            xmlAssinado, empresa.getUf(), nota.getTipo(), homologacao, certBytes, senhaCert));
+                    return processarRetornoSefaz(nota, toRetornoLegado(resultado), xmlAssinado);
+                } finally { java.util.Arrays.fill(xmlOriginal, (byte) 0); }
+            }
+
             // 3. Geração da Chave de Acesso (44 posições)
             String chaveFinal = gerarChaveAcesso.gerar(nota, empresa.getCnpj(),
                     GerarChaveAcesso.getCodigoUf(empresa.getUf()));
@@ -303,7 +318,6 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
 
             // 4. Montagem do XML (Assinatura Nua)
             log.info("Iniciando geração do XML da NF-e ID={}", notaId);
-            boolean homologacao = isHomologacao(nota.getEmpresaId());
             NfceQrCodeService.DadosQrCode qrOffline = Boolean.TRUE.equals(nota.getEmContingencia())
                     ? nfceQrCodeService.gerarOffline(chaveFinal, empresa.getUf(), homologacao,
                     nota.getDataEmissao(), nota.getValorTotal(), nota.getClienteCpfCnpj(), certBytes, senhaCert)
@@ -392,7 +406,8 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             String xml = xmlGeneratorService.gerarXmlNfe(nota, empresa, itens, chave, homologacao, qr);
             String assinado = assinaturaService.assinarXml(xml, material.arquivo(), material.senha());
             xsdValidationService.validarNfeAssinada(assinado);
-            nota.setXmlEnviado(assinado);
+            fiscalXmlService.armazenarContingencia(nota.getEmpresaId(), nota.getId(), assinado);
+            nota.setXmlEnviado(null);
             nota.setStatus(NotaFiscalStatus.CONTINGENCIA);
             nota.setMotivoRejeicao(null);
             return notaFiscalRepository.save(nota);
@@ -569,6 +584,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 throw legadoSemArquivoSeguro;
             }
         }
+        if (nota.getStatus() == NotaFiscalStatus.CONTINGENCIA) return fiscalXmlService.carregarContingencia(notaId);
         String xml = nota.getXmlAutorizado() != null ? nota.getXmlAutorizado() : nota.getXmlEnviado();
 
         if (xml == null) {
