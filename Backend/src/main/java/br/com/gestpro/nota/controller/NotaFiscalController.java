@@ -162,6 +162,36 @@ public class NotaFiscalController {
         return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
+    @PostMapping("/{id}/dps")
+    public ResponseEntity<ApiResponse<Map<String, String>>> prepararDps(@PathVariable Long id,
+            @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
+            Authentication auth, HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.EMITIR);
+        limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
+                "/api/nota-fiscal/dps");
+        fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
+        notaFiscalService.prepararDpsNacional(id);
+        fiscalAuditService.registrar(acesso.getEmpresaId(), id, "DPS_NACIONAL_PREPARADA", auth.getName(),
+                "SUCESSO", "transmissao=false");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "PREPARADA_LOCALMENTE")));
+    }
+
+    @GetMapping("/{id}/dps")
+    public ResponseEntity<byte[]> baixarDps(@PathVariable Long id, Authentication auth,
+                                             HttpServletRequest httpRequest) {
+        NotaFiscal acesso = notaFiscalService.buscarPorId(id);
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.EXPORTAR);
+        limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, acesso.getEmpresaId(), auth, httpRequest,
+                "/api/nota-fiscal/dps");
+        byte[] dps = notaFiscalService.baixarDpsNacional(id);
+        fiscalAuditService.registrar(acesso.getEmpresaId(), id, "DPS_NACIONAL_BAIXADA", auth.getName(), "SUCESSO", null);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_XML);
+        headers.setContentDisposition(ContentDisposition.attachment().filename("dps-" + id + ".xml").build());
+        return ResponseEntity.ok().headers(headers).body(dps);
+    }
+
     // DOWNLOADS
 
     @PostMapping(value = "/importar-xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

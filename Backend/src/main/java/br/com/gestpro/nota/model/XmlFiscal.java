@@ -12,7 +12,7 @@ import java.time.Instant;
         @Index(name = "idx_xml_fiscal_empresa", columnList = "empresa_id, criado_em"))
 @Getter @NoArgsConstructor
 public class XmlFiscal {
-    public enum Tipo { AUTORIZADO, CONTINGENCIA, EVENTO }
+    public enum Tipo { AUTORIZADO, CONTINGENCIA, DPS, EVENTO }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "empresa_id", nullable = false) private Long empresaId;
     @Column(name = "documento_id", nullable = false) private Long documentoId;

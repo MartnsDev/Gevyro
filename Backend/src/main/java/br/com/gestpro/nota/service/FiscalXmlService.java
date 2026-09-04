@@ -53,6 +53,11 @@ public class FiscalXmlService {
                 FiscalSpecificationVersion.NFE_LAYOUT, "NFCe_OFFLINE");
     }
 
+    public void armazenarDps(Long empresaId, Long documentoId, String xml) {
+        armazenar(empresaId, documentoId, XmlFiscal.Tipo.DPS, xml,
+                FiscalSpecificationVersion.NFSE_XSD, "SEFIN_NACIONAL_LOCAL");
+    }
+
     private void armazenar(Long empresaId, Long documentoId, XmlFiscal.Tipo tipo,
                            String xml, String versao, String provedor) {
         byte[] plain = xml.getBytes(StandardCharsets.UTF_8);
@@ -77,6 +82,10 @@ public class FiscalXmlService {
 
     public byte[] carregarContingencia(Long documentoId) {
         return carregar(documentoId, XmlFiscal.Tipo.CONTINGENCIA, "XML de contingência não foi preservado.");
+    }
+
+    public byte[] carregarDps(Long documentoId) {
+        return carregar(documentoId, XmlFiscal.Tipo.DPS, "DPS Nacional ainda não foi preparada.");
     }
 
     private byte[] carregar(Long documentoId, XmlFiscal.Tipo tipo, String ausente) {

@@ -29,6 +29,11 @@ public interface NotaFiscalInterface {
     /** Gera, assina e preserva a NFC-e offline localmente, sem transmiti-la. */
     NotaFiscal emitirContingenciaOffline(Long notaId, String justificativa);
 
+    /** Gera, assina, valida e preserva a DPS Nacional localmente, sem transmissão. */
+    void prepararDpsNacional(Long notaId);
+
+    byte[] baixarDpsNacional(Long notaId);
+
     /**
      * Cancela uma nota autorizada (dentro do prazo legal de 24h).
      */

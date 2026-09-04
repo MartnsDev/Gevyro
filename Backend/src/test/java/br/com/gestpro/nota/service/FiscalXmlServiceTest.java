@@ -84,6 +84,25 @@ class FiscalXmlServiceTest {
     }
 
     @Test
+    void preservaDpsAssinadaCifradaEImutavel() {
+        String dps = "<DPS xmlns=\"http://www.sped.fazenda.gov.br/nfse\"><infDPS Id=\"DPS1\"/></DPS>";
+        when(repository.findByDocumentoIdAndTipo(11L, XmlFiscal.Tipo.DPS)).thenReturn(Optional.empty());
+        ArgumentCaptor<XmlFiscal> captor = ArgumentCaptor.forClass(XmlFiscal.class);
+
+        service.armazenarDps(4L, 11L, dps);
+        verify(repository).save(captor.capture());
+        XmlFiscal salvo = captor.getValue();
+        assertThat(salvo.getTipo()).isEqualTo(XmlFiscal.Tipo.DPS);
+        assertThat(salvo.getProvider()).isEqualTo("SEFIN_NACIONAL_LOCAL");
+        assertThat(new String(salvo.getConteudoCifrado(), StandardCharsets.UTF_8)).doesNotContain("DPS1");
+
+        when(repository.findByDocumentoIdAndTipo(11L, XmlFiscal.Tipo.DPS)).thenReturn(Optional.of(salvo));
+        assertThat(new String(service.carregarDps(11L), StandardCharsets.UTF_8)).isEqualTo(dps);
+        assertThatThrownBy(() -> service.armazenarDps(4L, 11L, "<DPS>outra</DPS>"))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("imutável");
+    }
+
+    @Test
     void rejeitaDoctypeAntesDeProcessarXml() {
         String malicioso = "<!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/passwd\">]><NFe xmlns=\"http://www.portalfiscal.inf.br/nfe\">&e;</NFe>";
         assertThatThrownBy(() -> service.montarNfeProc(malicioso, "<ret/>")).isInstanceOf(IllegalStateException.class);

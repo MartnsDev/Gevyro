@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -69,6 +70,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     private final Estatisticas estatisticasService;
     private final FiscalAuthorizationService fiscalAuthorizationService;
     private final NfceQrCodeService nfceQrCodeService;
+    private final NfseDpsXmlService nfseDpsXmlService;
 
     @Transactional(readOnly = true)
     public void validarAcessoEmpresa(Long empresaId, String emailUsuario) {
@@ -417,6 +419,50 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             throw new ApiException("Não foi possível gerar a NFC-e offline com segurança.",
                     HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/contingencia-offline");
         }
+    }
+
+    @Override
+    public void prepararDpsNacional(Long notaId) {
+        NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(notaId)
+                .orElseThrow(() -> new ApiException("Nota fiscal não encontrada.", HttpStatus.NOT_FOUND,
+                        "/api/nota-fiscal/dps"));
+        fiscalFeatureService.validarEmissaoHabilitada(nota.getEmpresaId(), nota.getTipo());
+        if (nota.getTipo() != br.com.gestpro.nota.TipoNota.NFSE || nota.getStatus() != NotaFiscalStatus.DIGITACAO)
+            throw new ApiException("Somente uma NFS-e em digitação pode gerar DPS.", HttpStatus.CONFLICT,
+                    "/api/nota-fiscal/dps");
+        EmpresaInfo empresa = buscarEmpresaInfo(nota.getEmpresaId());
+        List<ItemNotaFiscal> itens = itemRepository.findByNotaFiscalId(notaId);
+        if (itens.size() != 1)
+            throw new ApiException("A DPS Nacional exige exatamente um serviço neste fluxo.", HttpStatus.BAD_REQUEST,
+                    "/api/nota-fiscal/dps");
+        ItemNotaFiscal item = itens.get(0);
+        DpsNacionalDados dados = new DpsNacionalDados(
+                isHomologacao(nota.getEmpresaId()),
+                nota.getDataEmissao().atZone(ZoneId.of("America/Sao_Paulo")).toOffsetDateTime(),
+                nota.getNfseCompetencia(), nota.getSerie(), nota.getNumeroNota(), empresa.getCodigoIbge(),
+                empresa.getCnpj(), empresa.getInscricaoMunicipal(), nota.getNfseOpcaoSimples(),
+                nota.getNfseRegimeEspecial(), nota.getNfseCodigoMunicipioPrestacao(),
+                nota.getNfseCodigoTributacaoNacional(), item.getDescricao(), item.getValorTotal(),
+                nota.getNfseTributacaoIssqn(), nota.getNfseRetencaoIssqn(), nota.getNfseAliquotaIssqn());
+        try (CertificateService.Material material = certificateService.carregar(nota.getEmpresaId())) {
+            String assinada = nfseDpsXmlService.gerarAssinada(dados, material.arquivo(), material.senha());
+            fiscalXmlService.armazenarDps(nota.getEmpresaId(), notaId, assinada);
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException("Não foi possível preparar a DPS Nacional com segurança.",
+                    HttpStatus.UNPROCESSABLE_ENTITY, "/api/nota-fiscal/dps");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] baixarDpsNacional(Long notaId) {
+        NotaFiscal nota = buscarPorId(notaId);
+        if (nota.getTipo() != br.com.gestpro.nota.TipoNota.NFSE)
+            throw new ApiException("O documento informado não é uma NFS-e.", HttpStatus.UNPROCESSABLE_ENTITY,
+                    "/api/nota-fiscal/dps");
+        return fiscalXmlService.carregarDps(notaId);
     }
 
     // OUTRAS AÇÕES DE CICLO DE VIDA E AUXILIARES
