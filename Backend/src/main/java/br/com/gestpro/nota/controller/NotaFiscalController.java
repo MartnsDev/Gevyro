@@ -37,15 +37,12 @@ public class NotaFiscalController {
     // CRUD
 
     @PostMapping
-    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> criar(@RequestBody CriarNotaRequest request, Authentication auth) {
-        try {
-            notaFiscalServiceImpl.exigirPermissaoEmpresa(request.getEmpresaId(), auth.getName(), FiscalPermission.EMITIR);
-            NotaFiscal nota = notaFiscalService.criar(request);
-            fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CRIADO", auth.getName(), "SUCESSO", null);
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
-        }
+    public ResponseEntity<ApiResponse<NotaFiscalResumoResponse>> criar(
+            @jakarta.validation.Valid @RequestBody CriarNotaRequest request, Authentication auth) {
+        notaFiscalServiceImpl.exigirPermissaoEmpresa(request.getEmpresaId(), auth.getName(), FiscalPermission.EMITIR);
+        NotaFiscal nota = notaFiscalService.criar(request);
+        fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CRIADO", auth.getName(), "SUCESSO", null);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     @PostMapping("/vendas/{vendaId}/nfce")
@@ -76,15 +73,11 @@ public class NotaFiscalController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> excluir(@PathVariable Long id, Authentication auth) {
-        try {
-            notaFiscalServiceImpl.exigirPermissaoNota(id, auth.getName(), FiscalPermission.EMITIR);
-            NotaFiscal nota = notaFiscalService.buscarPorId(id);
-            notaFiscalService.excluir(id);
-            fiscalAuditService.registrar(nota.getEmpresaId(), id, "RASCUNHO_EXCLUIDO", auth.getName(), "SUCESSO", null);
-            return ResponseEntity.ok(ApiResponse.ok(null));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
-        }
+        notaFiscalServiceImpl.exigirPermissaoNota(id, auth.getName(), FiscalPermission.EMITIR);
+        NotaFiscal nota = notaFiscalService.buscarPorId(id);
+        notaFiscalService.excluir(id);
+        fiscalAuditService.registrar(nota.getEmpresaId(), id, "RASCUNHO_EXCLUIDO", auth.getName(), "SUCESSO", null);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
     // CICLO DE VIDA
@@ -107,13 +100,9 @@ public class NotaFiscalController {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(acesso.getEmpresaId(), auth.getName(), FiscalPermission.CANCELAR);
         limitar(DistributedRateLimitService.Operacao.EMISSAO_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/cancelar");
         fiscalStepUp.exigirEConsumir(acesso.getEmpresaId(), auth.getName(), confirmation);
-        try {
-            NotaFiscal nota = notaFiscalService.cancelar(request);
-            fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CANCELADO", auth.getName(), "SUCESSO", null);
-            return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
-        }
+        NotaFiscal nota = notaFiscalService.cancelar(request);
+        fiscalAuditService.registrar(nota.getEmpresaId(), nota.getId(), "DOCUMENTO_CANCELADO", auth.getName(), "SUCESSO", null);
+        return ResponseEntity.ok(ApiResponse.ok(notaFiscalServiceImpl.toResumo(nota)));
     }
 
     @PostMapping("/carta-correcao")
@@ -252,19 +241,12 @@ public class NotaFiscalController {
     ) {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EXPORTAR);
         limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/xml-mensal");
-        try {
-            YearMonth ym = YearMonth.parse(periodo);
-            byte[] zip = notaFiscalService.gerarZipXmlsMensal(empresaId, ym);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.valueOf("application/zip"));
-            headers.setContentDisposition(ContentDisposition.attachment()
-                    .filename("xmls-" + periodo + ".zip").build());
-            return ResponseEntity.ok().headers(headers).body(zip);
-        } catch (Exception e) {
-            // Agora devolvemos o JSON de erro!
-            String msg = e.getMessage() != null ? e.getMessage() : "Nenhuma nota encontrada para o período selecionado.";
-            return ResponseEntity.badRequest().body(ApiResponse.erro(msg));
-        }
+        YearMonth ym = periodoFiscal(periodo, "/api/nota-fiscal/exportar/xml-mensal");
+        byte[] zip = notaFiscalService.gerarZipXmlsMensal(empresaId, ym);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.valueOf("application/zip"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename("xmls-" + periodo + ".zip").build());
+        return ResponseEntity.ok().headers(headers).body(zip);
     }
 
     @GetMapping("/exportar/sped")
@@ -276,7 +258,7 @@ public class NotaFiscalController {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.EXPORTAR);
         limitar(DistributedRateLimitService.Operacao.EXPORTACAO_FISCAL, empresaId, auth, httpRequest, "/api/nota-fiscal/exportar/sped");
         try {
-            YearMonth ym = YearMonth.parse(periodo);
+            YearMonth ym = periodoFiscal(periodo, "/api/nota-fiscal/exportar/sped");
             byte[] sped = notaFiscalService.gerarArquivoSped(empresaId, ym, tipo);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.TEXT_PLAIN);
@@ -286,9 +268,6 @@ public class NotaFiscalController {
         } catch (UnsupportedOperationException | java.lang.AbstractMethodError e) {
             return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
                     .body(ApiResponse.erro("O módulo de SPED Fiscal será liberado na próxima atualização."));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.erro("Erro ao gerar SPED: " + e.getMessage()));
         }
     }
 
@@ -323,23 +302,20 @@ public class NotaFiscalController {
             @RequestParam("senha") String senha,
             @RequestHeader(value = "X-Fiscal-Confirmation", required = false) String confirmation,
             Authentication auth, HttpServletRequest httpRequest
-    ) {
+    ) throws java.io.IOException {
         notaFiscalServiceImpl.exigirPermissaoEmpresa(empresaId, auth.getName(), FiscalPermission.GERENCIAR_CERTIFICADO);
         rateLimit.verificar(DistributedRateLimitService.Operacao.CERTIFICADO_FISCAL, empresaId,
                 auth.getName(), httpRequest.getRemoteAddr(), "/api/nota-fiscal/certificado");
         fiscalStepUp.exigirEConsumir(empresaId, auth.getName(), confirmation);
+        if (arquivo == null || arquivo.isEmpty() || arquivo.getSize() > br.com.gestpro.nota.service.CertificateService.MAX_PFX_BYTES)
+            throw new br.com.gestpro.infra.exception.ApiException("Certificado A1 deve possuir no máximo 1 MiB.",
+                    HttpStatus.BAD_REQUEST, "/api/nota-fiscal/certificado");
+        byte[] pfxBytes = arquivo.getBytes();
         try {
-            if (arquivo == null || arquivo.isEmpty() || arquivo.getSize() > br.com.gestpro.nota.service.CertificateService.MAX_PFX_BYTES)
-                return ResponseEntity.badRequest().body(ApiResponse.erro("Certificado A1 deve possuir no máximo 1 MiB."));
-            byte[] pfxBytes = arquivo.getBytes();
-            try {
-                Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
-                fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
-                return ResponseEntity.ok(ApiResponse.ok(info));
-            } finally { java.util.Arrays.fill(pfxBytes, (byte) 0); }
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.erro(e.getMessage()));
-        }
+            Map<String, String> info = notaFiscalServiceImpl.registrarCertificado(empresaId, pfxBytes, senha);
+            fiscalAuditService.registrar(empresaId, null, "CERTIFICADO_SUBSTITUIDO", auth.getName(), "SUCESSO", null);
+            return ResponseEntity.ok(ApiResponse.ok(info));
+        } finally { java.util.Arrays.fill(pfxBytes, (byte) 0); }
     }
 
     // CONSULTAS AUXILIARES
@@ -383,5 +359,13 @@ public class NotaFiscalController {
     private void limitar(DistributedRateLimitService.Operacao operacao, Long empresaId, Authentication auth,
                          HttpServletRequest request, String path) {
         rateLimit.verificar(operacao, empresaId, auth.getName(), request.getRemoteAddr(), path);
+    }
+
+    private YearMonth periodoFiscal(String value, String path) {
+        try { return YearMonth.parse(value); }
+        catch (java.time.format.DateTimeParseException e) {
+            throw new br.com.gestpro.infra.exception.ApiException("Período deve usar o formato AAAA-MM.",
+                    HttpStatus.BAD_REQUEST, path);
+        }
     }
 }

@@ -536,7 +536,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                 emitir(nota.getId());
                 transmitidas++;
             } catch (Exception e) {
-                log.warn("Falha ao tentar retransmitir contingência ID={}: {}", nota.getId(), e.getMessage());
+                log.warn("Falha segura ao retransmitir contingência ID={}: {}", nota.getId(), e.getClass().getSimpleName());
             }
         }
         log.info("Rotina de contingências finalizada. Transmitidas: {}/{}", transmitidas, contingencias.size());
