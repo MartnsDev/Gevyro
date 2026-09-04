@@ -6,6 +6,7 @@ import br.com.gestpro.auth.dto.AuthDTO.LoginUsuarioDTO;
 import br.com.gestpro.auth.service.AuthenticationService;
 import br.com.gestpro.auth.service.AuthCookieService;
 import br.com.gestpro.infra.exception.ApiException;
+import br.com.gestpro.infra.security.DistributedRateLimitService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -33,17 +34,20 @@ public class AuthController {
     private final AuthCookieService authCookieService;
     private final String frontendUrl;
     private final String baseUrl;
+    private final DistributedRateLimitService rateLimit;
 
     public AuthController(
             AuthenticationService authService,
             AuthCookieService authCookieService,
             @Value("${app.frontend.url}") String frontendUrl,
-            @Value("${app.base-url}") String baseUrl
+            @Value("${app.base-url}") String baseUrl,
+            DistributedRateLimitService rateLimit
     ) {
         this.authService = authService;
         this.authCookieService = authCookieService;
         this.frontendUrl = frontendUrl;
         this.baseUrl = baseUrl;
+        this.rateLimit = rateLimit;
     }
 
     @PostMapping(
@@ -117,6 +121,8 @@ public class AuthController {
             HttpServletRequest servletRequest,
             HttpServletResponse response
     ) {
+        rateLimit.verificarIdentidade(DistributedRateLimitService.Operacao.LOGIN,
+                request.email(), servletRequest.getRemoteAddr(), "/auth/login");
         encerrarSessaoAnterior(servletRequest, response);
 
         try {

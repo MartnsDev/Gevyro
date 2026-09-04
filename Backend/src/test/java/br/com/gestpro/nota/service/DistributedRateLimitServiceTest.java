@@ -49,7 +49,32 @@ class DistributedRateLimitServiceTest {
                         erro -> assertThat(erro.getStatus().value()).isEqualTo(503));
     }
 
+    @Test
+    void limitaLoginPorIdentidadeEIpEmCincoPorMinuto() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        when(redis.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(6L, 42_000L));
+
+        assertThatThrownBy(() -> service(redis).verificarIdentidade(
+                DistributedRateLimitService.Operacao.LOGIN, "Pessoa@Example.com", "203.0.113.4", "/auth/login"))
+                .isInstanceOfSatisfying(RateLimitExceededException.class,
+                        erro -> assertThat(erro.getRetryAfterSeconds()).isEqualTo(42));
+    }
+
+    @Test
+    void limitaRecuperacaoEmJanelaDeQuinzeMinutos() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        when(redis.execute(any(RedisScript.class), anyList(), any(Object[].class)))
+                .thenReturn(List.of(4L, 899_001L));
+
+        assertThatThrownBy(() -> service(redis).verificarIdentidade(
+                DistributedRateLimitService.Operacao.RECUPERACAO_SENHA,
+                "pessoa@example.com", "203.0.113.4", "/api/auth/esqueceu-senha"))
+                .isInstanceOfSatisfying(RateLimitExceededException.class,
+                        erro -> assertThat(erro.getRetryAfterSeconds()).isEqualTo(900));
+    }
+
     private DistributedRateLimitService service(StringRedisTemplate redis) {
-        return new DistributedRateLimitService(redis, 30, 120, 5, 10);
+        return new DistributedRateLimitService(redis, 5, 3, 30, 120, 5, 10);
     }
 }

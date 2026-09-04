@@ -14,7 +14,7 @@ import java.util.*;
 
 @Service
 public class DistributedRateLimitService {
-    public enum Operacao { EMISSAO_FISCAL, CONSULTA_FISCAL, CERTIFICADO_FISCAL, EXPORTACAO_FISCAL }
+    public enum Operacao { LOGIN, RECUPERACAO_SENHA, EMISSAO_FISCAL, CONSULTA_FISCAL, CERTIFICADO_FISCAL, EXPORTACAO_FISCAL }
     private static final DefaultRedisScript<List> SCRIPT = new DefaultRedisScript<>("""
             local atual = redis.call('INCR', KEYS[1])
             if atual == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[2]) end
@@ -22,26 +22,47 @@ public class DistributedRateLimitService {
             return {atual, ttl}
             """, List.class);
     private final StringRedisTemplate redis;
+    private final int login; private final int recuperacao;
     private final int emissao; private final int consulta; private final int certificado; private final int exportacao;
 
     public DistributedRateLimitService(StringRedisTemplate redis,
+            @Value("${app.rate-limit.auth.login-per-minute:5}") int login,
+            @Value("${app.rate-limit.auth.recovery-per-15-minutes:3}") int recuperacao,
             @Value("${app.rate-limit.fiscal.emissao-per-minute:30}") int emissao,
             @Value("${app.rate-limit.fiscal.consulta-per-minute:120}") int consulta,
             @Value("${app.rate-limit.fiscal.certificado-per-hour:5}") int certificado,
             @Value("${app.rate-limit.fiscal.exportacao-per-minute:10}") int exportacao) {
-        this.redis = redis; this.emissao = positivo(emissao); this.consulta = positivo(consulta);
+        this.redis = redis; this.login = positivo(login); this.recuperacao = positivo(recuperacao);
+        this.emissao = positivo(emissao); this.consulta = positivo(consulta);
         this.certificado = positivo(certificado); this.exportacao = positivo(exportacao);
     }
 
     public void verificar(Operacao operacao, Long empresaId, String usuario, String ip, String path) {
         if (empresaId == null) throw new ApiException("Empresa é obrigatória para controle fiscal.", HttpStatus.BAD_REQUEST, path);
         int limite = switch (operacao) {
+            case LOGIN, RECUPERACAO_SENHA -> throw new IllegalArgumentException("Operação não é fiscal.");
             case EMISSAO_FISCAL -> emissao; case CONSULTA_FISCAL -> consulta;
             case CERTIFICADO_FISCAL -> certificado; case EXPORTACAO_FISCAL -> exportacao;
         };
         Duration janela = operacao == Operacao.CERTIFICADO_FISCAL ? Duration.ofHours(1) : Duration.ofMinutes(1);
         String chave = "ratelimit:fiscal:" + operacao.name().toLowerCase(Locale.ROOT) + ":" + empresaId + ":"
                 + digest(normalizar(usuario)) + ":" + digest(normalizar(ip));
+        executar(chave, limite, janela, path);
+    }
+
+    public void verificarIdentidade(Operacao operacao, String identidade, String ip, String path) {
+        int limite = switch (operacao) {
+            case LOGIN -> login;
+            case RECUPERACAO_SENHA -> recuperacao;
+            default -> throw new IllegalArgumentException("Operação não é de autenticação.");
+        };
+        Duration janela = operacao == Operacao.LOGIN ? Duration.ofMinutes(1) : Duration.ofMinutes(15);
+        String chave = "ratelimit:auth:" + operacao.name().toLowerCase(Locale.ROOT) + ":"
+                + digest(normalizar(identidade)) + ":" + digest(normalizar(ip));
+        executar(chave, limite, janela, path);
+    }
+
+    private void executar(String chave, int limite, Duration janela, String path) {
         try {
             List<?> resultado = redis.execute(SCRIPT, List.of(chave), String.valueOf(limite), String.valueOf(janela.toMillis()));
             if (resultado == null || resultado.size() != 2) throw new RedisConnectionFailureException("Resposta Redis inválida");
