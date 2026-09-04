@@ -83,6 +83,7 @@ public class WebhookShopeeService {
 
 
     private void validarAssinatura(byte[] rawBody, String authorization) {
+        validarSegredoConfigurado();
         try {
             String bodyString = new String(rawBody, StandardCharsets.UTF_8);
             String baseString = webhookUrl + bodyString;
@@ -98,6 +99,14 @@ public class WebhookShopeeService {
         } catch (Exception e) {
             log.error("Erro ao validar assinatura Shopee", e);
             throw new ApiException("Erro na validação da assinatura.", HttpStatus.INTERNAL_SERVER_ERROR, "/webhook/shopee");
+        }
+    }
+
+    private void validarSegredoConfigurado() {
+        if (shopeePartnerKey == null || shopeePartnerKey.isBlank()
+                || "CONFIGURE_ME".equals(shopeePartnerKey) || shopeePartnerKey.length() < 16) {
+            log.error("Webhook Shopee desativado: segredo de assinatura não configurado com segurança");
+            throw new ApiException("Webhook indisponível.", HttpStatus.SERVICE_UNAVAILABLE, "/webhook/shopee");
         }
     }
 

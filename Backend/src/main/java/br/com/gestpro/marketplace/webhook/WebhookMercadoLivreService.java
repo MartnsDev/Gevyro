@@ -82,6 +82,7 @@ public class WebhookMercadoLivreService {
      * e comparamos o HMAC-SHA256 com v1.
      */
     private void validarAssinatura(String xSignature, String xRequestId, String orderId) {
+        validarSegredoConfigurado();
         try {
             String ts = extrairCampoSignature(xSignature, "ts");
             String v1 = extrairCampoSignature(xSignature, "v1");
@@ -100,6 +101,15 @@ public class WebhookMercadoLivreService {
         } catch (Exception e) {
             log.error("Erro ao validar assinatura ML", e);
             throw new ApiException("Erro na validação da assinatura.", HttpStatus.INTERNAL_SERVER_ERROR, "/webhook/mercadolivre");
+        }
+    }
+
+    private void validarSegredoConfigurado() {
+        if (mlSecretKey == null || mlSecretKey.isBlank()
+                || "CONFIGURE_ME".equals(mlSecretKey) || mlSecretKey.length() < 16) {
+            log.error("Webhook Mercado Livre desativado: segredo de assinatura não configurado com segurança");
+            throw new ApiException("Webhook indisponível.", HttpStatus.SERVICE_UNAVAILABLE,
+                    "/webhook/mercadolivre");
         }
     }
 
