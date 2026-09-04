@@ -1,0 +1,28 @@
+meta {
+  name: Configurar webhook fiscal desativado
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/fiscal/webhook/{{empresaId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  X-Fiscal-Confirmation: {{confirmation}}
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "url": "https://host-previamente-aprovado.example/webhooks/fiscal",
+    "segredo": "substitua-por-segredo-aleatorio-de-32-caracteres",
+    "eventos": ["DOCUMENTO_AUTORIZADO"],
+    "ativo": false
+  }
+}
