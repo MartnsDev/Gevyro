@@ -191,17 +191,13 @@ public class NotaFiscalController {
         NotaFiscal acesso = notaFiscalService.buscarPorId(id);
         notaFiscalServiceImpl.validarAcessoEmpresa(acesso.getEmpresaId(), auth.getName());
         limitar(DistributedRateLimitService.Operacao.CONSULTA_FISCAL, acesso.getEmpresaId(), auth, httpRequest, "/api/nota-fiscal/xml");
-        try {
-            byte[] xml = notaFiscalService.baixarXml(id);
-            NotaFiscal nota = notaFiscalService.buscarPorId(id);
-            fiscalAuditService.registrar(nota.getEmpresaId(), id, "XML_BAIXADO", auth.getName(), "SUCESSO", null);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_XML);
-            headers.setContentDisposition(ContentDisposition.attachment().filename("nfe-" + id + ".xml").build());
-            return ResponseEntity.ok().headers(headers).body(xml);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        byte[] xml = notaFiscalService.baixarXml(id);
+        NotaFiscal nota = notaFiscalService.buscarPorId(id);
+        fiscalAuditService.registrar(nota.getEmpresaId(), id, "XML_BAIXADO", auth.getName(), "SUCESSO", null);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_XML);
+        headers.setContentDisposition(ContentDisposition.attachment().filename("nfe-" + id + ".xml").build());
+        return ResponseEntity.ok().headers(headers).body(xml);
     }
 
     @GetMapping("/{id}/danfe")

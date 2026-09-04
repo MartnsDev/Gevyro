@@ -117,12 +117,6 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/api-docs/**"
-                        )
-                        .permitAll()
-
                         /*
                          * Checkout e session-info exigem autenticação, inclusive
                          * quando o plano está inativo.
