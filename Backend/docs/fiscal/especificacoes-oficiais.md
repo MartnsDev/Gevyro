@@ -50,6 +50,8 @@ O limitador fiscal usa um script Lua atômico no Redis. A chave combina operaç�
 | Consultas e downloads | 120/minuto | `FISCAL_RATE_CONSULTA_PER_MINUTE` |
 | Upload/substituição de certificado | 5/hora | `FISCAL_RATE_CERTIFICADO_PER_HOUR` |
 | Exportações em massa | 10/minuto | `FISCAL_RATE_EXPORTACAO_PER_MINUTE` |
+| Login por identidade e IP | 5/minuto | `AUTH_RATE_LOGIN_PER_MINUTE` |
+| Recuperação por identidade e IP | 3/15 minutos | `AUTH_RATE_RECOVERY_PER_15_MINUTES` |
 
 Quando o limite é excedido a API retorna HTTP 429 e `Retry-After` calculado pelo TTL do contador Redis.
 

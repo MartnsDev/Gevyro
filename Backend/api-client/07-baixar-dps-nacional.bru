@@ -1,0 +1,15 @@
+meta {
+  name: Baixar DPS Nacional preservada
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/nota-fiscal/{{notaId}}/dps
+  body: none
+  auth: none
+}
+
+docs {
+  Retorna exatamente a DPS assinada preservada. DPS não é uma NFS-e autorizada.
+}

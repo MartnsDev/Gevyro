@@ -1,0 +1,19 @@
+meta {
+  name: Preparar DPS Nacional local
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/nota-fiscal/{{notaId}}/dps
+  body: none
+  auth: none
+}
+
+headers {
+  X-Fiscal-Confirmation: {{confirmation}}
+}
+
+docs {
+  Gera, assina, valida e cifra a DPS localmente. Não transmite nem autoriza NFS-e.
+}

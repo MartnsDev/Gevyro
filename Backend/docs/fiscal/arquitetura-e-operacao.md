@@ -18,6 +18,9 @@ homologação e não recebem liberação implícita para produção.
   consulta antes de repetir resultado desconhecido;
 - XML: geração versionada, assinatura XMLDSig, validação XSD e preservação
   cifrada com SHA-256 do documento autorizado;
+- NFS-e Nacional: a DPS v1.01 pode ser gerada, assinada, validada e preservada
+  cifrada localmente. Isso não equivale a uma NFS-e autorizada e não dispara
+  transmissão para a SEFIN;
 - providers: fronteira Strategy para SEFAZ direta e NFS-e Nacional/adapters;
 - entrega: solicitações de e-mail entram em outbox transacional, com destinatário cifrado e índice cego HMAC para deduplicação. Sem despachante autorizado, permanecem em `AGUARDANDO_CONFIGURACAO` e nenhum dado sai da Gevyro;
 - webhooks: configuração separada por empresa, URL e segredo HMAC cifrados, HTTPS obrigatório e host exato em allowlist do servidor. IPs literais, userinfo, fragmentos e portas diferentes de 443 são recusados;
@@ -75,6 +78,20 @@ O certificado A1 é enviado uma vez, validado e nunca devolvido pela API.
 inicia `false`. Não existe despachante nesta etapa. Uma implementação futura deve
 revalidar DNS/IP imediatamente antes de cada conexão para impedir DNS rebinding,
 assinar corpo, timestamp e ID do evento, impedir replay e usar a outbox transacional.
+
+## NFS-e Nacional: limite seguro atual
+
+`POST /api/nota-fiscal/{id}/dps` prepara uma DPS de NFS-e em digitação. A ação
+exige permissão de emissão, reconfirmação de identidade, certificado A1 válido e
+feature flag NFS-e habilitada somente no ambiente permitido. O XML é assinado,
+validado contra o XSD embarcado e armazenado com AES-GCM e SHA-256. O endpoint
+não faz chamada externa.
+
+`GET /api/nota-fiscal/{id}/dps` baixa exatamente a DPS preservada e registra a
+operação na auditoria. DPS não é NFS-e, não possui autorização nem substitui o
+XML retornado pela SEFIN. DANFSe somente poderá ser gerado depois de validar e
+preservar uma NFS-e oficialmente emitida. Transmissão, consulta, eventos e
+DANFSe permanecem fail-closed até homologação oficial específica.
 
 ## Adicionar provider ou atualizar schema
 
