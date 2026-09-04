@@ -251,6 +251,7 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
     }
 
     @Override
+    @Transactional(noRollbackFor = ApiException.class)
     public NotaFiscal emitir(Long notaId) {
         // 1. Busca a nota e valida o status
         NotaFiscal nota = notaFiscalRepository.findByIdForUpdate(notaId)
@@ -329,19 +330,13 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
             return processarRetornoSefaz(nota, retorno, xmlAssinado);
 
         } catch (ApiException e) {
-            // Repassa erros de negócio que nós mesmos lançamos
-            nota.setStatus(NotaFiscalStatus.ERRO_TECNICO);
-            nota.setMotivoRejeicao("Falha técnica durante a emissão. Consulte os detalhes da operação antes de tentar novamente.");
-            notaFiscalRepository.save(nota);
+            registrarFalhaEmissao(nota, nota.getStatus() == NotaFiscalStatus.PROCESSANDO);
             throw e;
 
         } catch (Exception e) {
             log.error("Falha catastrófica ao tentar emitir NF-e ID={}", notaId, e);
 
-            // Marca a nota como rejeitada por falha técnica
-            nota.setStatus(NotaFiscalStatus.ERRO_TECNICO);
-            nota.setMotivoRejeicao("Falha técnica ou resultado desconhecido na comunicação fiscal.");
-            notaFiscalRepository.save(nota);
+            registrarFalhaEmissao(nota, true);
 
             throw new ApiException(
                     "Não foi possível confirmar o resultado da emissão. Consulte a situação da nota antes de tentar novamente.",
@@ -349,6 +344,17 @@ public class NotaFiscalServiceImpl implements NotaFiscalInterface {
                     "/api/nota-fiscal/emitir"
             );
         }
+    }
+
+    void registrarFalhaEmissao(NotaFiscal nota, boolean resultadoExternoPodeSerDesconhecido) {
+        if (resultadoExternoPodeSerDesconhecido) {
+            nota.setStatus(NotaFiscalStatus.ERRO_TECNICO);
+            nota.setMotivoRejeicao("Falha técnica ou resultado desconhecido na comunicação fiscal. Consulte a situação antes de reenviar.");
+        } else {
+            nota.setStatus(NotaFiscalStatus.DIGITACAO);
+            nota.setMotivoRejeicao("A validação local não foi concluída. Corrija a configuração ou os dados informados antes de tentar novamente.");
+        }
+        notaFiscalRepository.save(nota);
     }
 
     @Override
