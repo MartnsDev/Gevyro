@@ -1,6 +1,8 @@
 package br.com.gestpro.infra.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -11,18 +13,24 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.net.URI;
 
 @Configuration
 public class CorsConfig {
 
     private final String frontendUrl;
+    private final String allowedOrigins;
+    private final boolean production;
 
     public CorsConfig(
             @Value("${app.frontend.url}")
-            String frontendUrl
+            String frontendUrl,
+            @Value("${app.cors.allowed-origins}") String allowedOrigins,
+            Environment environment
     ) {
-        this.frontendUrl =
-                normalizarOrigem(frontendUrl);
+        this.production = environment.acceptsProfiles(Profiles.of("prod"));
+        this.frontendUrl = normalizarOrigem(frontendUrl);
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Bean
@@ -38,9 +46,9 @@ public class CorsConfig {
                 new LinkedHashSet<>();
 
         origens.add(frontendUrl);
-        origens.add("https://gevyro.com.br");
-        origens.add("https://www.gevyro.com.br");
-        origens.add("http://localhost:3000");
+        for (String origem : allowedOrigins.split(",")) {
+            if (!origem.isBlank()) origens.add(normalizarOrigem(origem));
+        }
         config.setAllowedOrigins(
                 new ArrayList<>(origens)
         );
@@ -58,10 +66,12 @@ public class CorsConfig {
                 "Content-Type",
                 "X-CSRF-TOKEN",
                 "X-Requested-With",
+                "Idempotency-Key",
+                "X-Correlation-ID",
                 "Accept"
         ));
 
-        config.setExposedHeaders(List.of());
+        config.setExposedHeaders(List.of("X-Correlation-ID", "Retry-After"));
 
         config.setMaxAge(3600L);
 
@@ -92,6 +102,19 @@ public class CorsConfig {
             );
         }
 
+        if (valor.contains("*")) throw new IllegalStateException("CORS não aceita origem curinga.");
+        try {
+            URI uri = URI.create(valor);
+            boolean esquemaValido = "https".equalsIgnoreCase(uri.getScheme())
+                    || (!production && "http".equalsIgnoreCase(uri.getScheme()));
+            if (!esquemaValido || uri.getHost() == null || uri.getUserInfo() != null
+                    || uri.getPath() != null && !uri.getPath().isEmpty()
+                    || uri.getQuery() != null || uri.getFragment() != null) {
+                throw new IllegalStateException("Origem CORS inválida: informe somente esquema, host e porta.");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Origem CORS inválida.", ex);
+        }
         return valor;
     }
 }

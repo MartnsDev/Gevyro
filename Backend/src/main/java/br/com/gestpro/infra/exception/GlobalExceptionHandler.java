@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
 
         RetornoErroAPI retorno = new RetornoErroAPI(
                 false,
-                ex.getMessage(),
+                "Recurso não encontrado.",
                 404,
                 request.getRequestURI(),
                 LocalDateTime.now(),
@@ -113,7 +113,7 @@ public class GlobalExceptionHandler {
 
         RetornoErroAPI retorno = new RetornoErroAPI(
                 false,
-                ex.getMessage(),
+                status == 401 ? "Autenticação necessária." : "Acesso negado.",
                 status,
                 request.getRequestURI(),
                 LocalDateTime.now(),
@@ -142,12 +142,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public ResponseEntity<Object> handleMaxSizeException(MaxUploadSizeExceededException exc) {
-        ApiException apiException = new ApiException(
+    public ResponseEntity<RetornoErroAPI> handleMaxSizeException(MaxUploadSizeExceededException exc,
+                                                                  HttpServletRequest request) {
+        RetornoErroAPI erro = new RetornoErroAPI(
+                false,
                 "O arquivo excede o limite permitido (5MB).",
-                HttpStatus.BAD_REQUEST,
-                "/api/v1/configuracoes/perfil/foto"
+                HttpStatus.BAD_REQUEST.value(),
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                null
         );
-        return new ResponseEntity<>(apiException, HttpStatus.BAD_REQUEST);
+        return ResponseEntity.badRequest().body(erro);
     }
 }
