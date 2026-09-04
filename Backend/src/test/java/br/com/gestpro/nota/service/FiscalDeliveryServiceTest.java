@@ -78,4 +78,18 @@ class FiscalDeliveryServiceTest {
         service.solicitarEmail(7L, "a@b.com", "ator");
         verify(deliveries, never()).save(any());
     }
+
+    @Test void acessoCruzadoParaAntesDePersistirEntrega() {
+        NotaFiscal nota = NotaFiscal.builder().id(7L).empresaId(3L).status(NotaFiscalStatus.AUTORIZADA).build();
+        when(notas.findById(7L)).thenReturn(Optional.of(nota));
+        doThrow(new ApiException("Sem permissão para esta operação fiscal.",
+                org.springframework.http.HttpStatus.FORBIDDEN, "/api/fiscal"))
+                .when(authorization).exigir(3L, "intruso@example.com", br.com.gestpro.nota.FiscalPermission.EXPORTAR);
+        assertThatThrownBy(() -> service.solicitarEmail(7L, "a@b.com", "intruso@example.com"))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getStatus())
+                .isEqualTo(org.springframework.http.HttpStatus.FORBIDDEN);
+        verify(deliveries, never()).findByDedupKey(anyString());
+        verify(deliveries, never()).save(any());
+    }
 }

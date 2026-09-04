@@ -19,6 +19,7 @@ import static org.mockito.Mockito.*;
 
 class FiscalWebhookConfigServiceTest {
     private FiscalWebhookConfigRepository repository;
+    private FiscalAuthorizationService authorization;
     private FiscalEncryptionService encryption;
     private FiscalWebhookConfigService service;
 
@@ -26,7 +27,8 @@ class FiscalWebhookConfigServiceTest {
         repository = mock(FiscalWebhookConfigRepository.class);
         encryption = new FiscalEncryptionService(Base64.getEncoder().encodeToString(new byte[32]));
         encryption.validateKey();
-        service = new FiscalWebhookConfigService(repository, mock(FiscalAuthorizationService.class),
+        authorization = mock(FiscalAuthorizationService.class);
+        service = new FiscalWebhookConfigService(repository, authorization,
                 encryption, mock(FiscalAuditService.class));
         ReflectionTestUtils.setField(service, "allowedHosts", "hooks.example.com");
         ReflectionTestUtils.setField(service, "dispatchEnabled", false);
@@ -61,5 +63,19 @@ class FiscalWebhookConfigServiceTest {
         assertThatThrownBy(() -> service.validarUrl("https://user@hooks.example.com/fiscal")).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> service.validarUrl("https://hooks.example.com:8443/fiscal")).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> service.validarUrl("https://nao-aprovado.example/fiscal")).isInstanceOf(ApiException.class);
+    }
+
+    @Test void acessoCruzadoParaAntesDeLerOuSalvarConfiguracao() {
+        doThrow(new ApiException("Sem permissão para esta operação fiscal.",
+                org.springframework.http.HttpStatus.FORBIDDEN, "/api/fiscal"))
+                .when(authorization).exigir(3L, "intruso@example.com", br.com.gestpro.nota.FiscalPermission.CONFIGURAR);
+        assertThatThrownBy(() -> service.buscar(3L, "intruso@example.com"))
+                .isInstanceOf(ApiException.class);
+        var request = new FiscalWebhookConfigRequest("https://hooks.example.com/fiscal", "s".repeat(32),
+                Set.of(FiscalWebhookConfigRequest.Evento.DOCUMENTO_AUTORIZADO), false);
+        assertThatThrownBy(() -> service.salvar(3L, request, "intruso@example.com"))
+                .isInstanceOf(ApiException.class);
+        verify(repository, never()).findByEmpresaId(anyLong());
+        verify(repository, never()).save(any());
     }
 }
