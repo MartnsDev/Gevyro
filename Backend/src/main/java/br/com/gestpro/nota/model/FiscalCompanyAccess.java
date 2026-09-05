@@ -14,7 +14,7 @@ public class FiscalCompanyAccess {
     private Long empresaId;
     @Column(name = "usuario_id", nullable = false, updatable = false)
     private Long usuarioId;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 24)
+    @Enumerated(EnumType.STRING) @Column(name = "fiscal_role", nullable = false, length = 24)
     private FiscalRole role;
     @Column(nullable = false)
     @Builder.Default

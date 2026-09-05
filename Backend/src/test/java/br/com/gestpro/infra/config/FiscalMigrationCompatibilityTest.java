@@ -30,5 +30,10 @@ class FiscalMigrationCompatibilityTest {
             assertThat(columns.next()).isTrue();
             assertThat(columns.getString("IS_AUTOINCREMENT")).isEqualTo("YES");
         }
+        try (Connection connection = dataSource.getConnection();
+             ResultSet role = connection.getMetaData().getColumns(null, null,
+                     "FISCAL_COMPANY_ACCESS", "FISCAL_ROLE")) {
+            assertThat(role.next()).isTrue();
+        }
     }
 }
