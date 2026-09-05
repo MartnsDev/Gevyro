@@ -8,7 +8,16 @@ com MySQL. A migration do repositório agora usa `AUTO_INCREMENT`.
 
 ## Procedimento operacional
 
-Não desative a validação do Flyway e não habilite `repair` automático no boot.
+O backend possui uma recuperação transitória no perfil `prod`. Antes de o
+Flyway migrar, ela verifica exatamente as mesmas condições abaixo. Quando há uma
+única V12 falha e a tabela-alvo não existe, remove somente esse marcador dentro
+de transação e deixa o Flyway aplicar a V12 corrigida. Depois do sucesso, o
+mecanismo fica inerte. Se encontrar DDL parcial ou estado divergente, o deploy
+continua bloqueado.
+
+As consultas abaixo permanecem úteis para auditoria e diagnóstico manual.
+
+Não desative a validação do Flyway e não habilite `repair` amplo no boot.
 Antes de modificar o histórico, faça backup e execute consultas somente leitura:
 
 ```sql
@@ -26,10 +35,9 @@ O reparo só é seguro para este incidente quando existe exatamente uma linha V1
 com `success = 0` e `tabela_v12_existente = 0`. Se a tabela existir, interrompa:
 há DDL parcial que precisa de inspeção antes de qualquer alteração.
 
-Depois do backup e dessas duas confirmações, execute o comando oficial do Flyway
-`repair` usando a mesma URL, usuário e versão do runtime de produção. Não coloque
-credenciais na linha de comando, no Git ou em logs. Em seguida, faça um novo
-deploy; o Flyway aplicará a V12 corrigida e continuará pelas migrations seguintes.
+Caso a recuperação controlada recuse o estado, não apague tabelas nem linhas do
+histórico. Restaure/inspecione o backup e trate o DDL parcial manualmente antes de
+um novo deploy. Não coloque credenciais na linha de comando, no Git ou em logs.
 
 Após subir, confirme:
 
