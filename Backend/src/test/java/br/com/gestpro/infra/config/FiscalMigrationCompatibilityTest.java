@@ -1,5 +1,7 @@
 package br.com.gestpro.infra.config;
 
+import br.com.gestpro.nota.model.FiscalDelivery;
+import jakarta.persistence.Column;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -11,6 +13,14 @@ import java.sql.ResultSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FiscalMigrationCompatibilityTest {
+
+    @Test
+    void dedupKeyMantemMesmoTipoFixoDaMigrationV15() throws Exception {
+        Column mapping = FiscalDelivery.class.getDeclaredField("dedupKey").getAnnotation(Column.class);
+
+        assertThat(mapping.columnDefinition()).isEqualTo("CHAR(64)");
+        assertThat(mapping.length()).isEqualTo(64);
+    }
 
     @Test
     void v12UsaIdentidadeCompativelComMySql() throws Exception {
