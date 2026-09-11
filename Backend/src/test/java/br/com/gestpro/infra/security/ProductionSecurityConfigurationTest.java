@@ -22,4 +22,12 @@ class ProductionSecurityConfigurationTest {
         assertThat(properties).contains("spring.datasource.password=${DB_PASSWORD}")
                 .doesNotContain("spring.datasource.password=${DB_PASSWORD:");
     }
+
+    @Test void corsDeProducaoTemFallbackRestritoAosDominiosOficiais() throws IOException {
+        String properties = Files.readString(Path.of("src/main/resources/application-prod.properties"));
+
+        assertThat(properties)
+                .contains("app.cors.allowed-origins=${CORS_ALLOWED_ORIGINS:https://www.gevyro.com.br,https://gevyro.com.br}")
+                .doesNotContain("app.cors.allowed-origins=*");
+    }
 }
