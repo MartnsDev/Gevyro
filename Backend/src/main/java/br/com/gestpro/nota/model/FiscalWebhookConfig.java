@@ -13,9 +13,9 @@ public class FiscalWebhookConfig {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "empresa_id", nullable = false) private Long empresaId;
     @Lob @Column(name = "url_cifrada", nullable = false, columnDefinition = "BLOB") private byte[] urlCifrada;
-    @Column(name = "url_nonce", nullable = false, length = 12) private byte[] urlNonce;
+    @Column(name = "url_nonce", nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] urlNonce;
     @Lob @Column(name = "segredo_cifrado", nullable = false, columnDefinition = "BLOB") private byte[] segredoCifrado;
-    @Column(name = "segredo_nonce", nullable = false, length = 12) private byte[] segredoNonce;
+    @Column(name = "segredo_nonce", nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] segredoNonce;
     @Column(name = "host_aprovado", nullable = false, length = 253) private String hostAprovado;
     @Column(name = "eventos", nullable = false, length = 255) private String eventos;
     @Column(nullable = false) private boolean ativo;

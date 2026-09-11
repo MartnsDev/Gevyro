@@ -13,9 +13,9 @@ public class CertificadoDigital {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @Column(name = "empresa_id", nullable = false) private Long empresaId;
     @Lob @Column(name = "arquivo_cifrado", nullable = false, columnDefinition = "LONGBLOB") private byte[] arquivoCifrado;
-    @Column(name = "arquivo_nonce", nullable = false, length = 12) private byte[] arquivoNonce;
+    @Column(name = "arquivo_nonce", nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] arquivoNonce;
     @Lob @Column(name = "senha_cifrada", nullable = false, columnDefinition = "BLOB") private byte[] senhaCifrada;
-    @Column(name = "senha_nonce", nullable = false, length = 12) private byte[] senhaNonce;
+    @Column(name = "senha_nonce", nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] senhaNonce;
     @Column(nullable = false, length = 500) private String titular;
     @Column(nullable = false, length = 500) private String emissor;
     @Column(name = "numero_serie", nullable = false, length = 100) private String numeroSerie;

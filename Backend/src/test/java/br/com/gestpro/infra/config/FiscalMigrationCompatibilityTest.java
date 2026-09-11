@@ -1,6 +1,11 @@
 package br.com.gestpro.infra.config;
 
 import br.com.gestpro.nota.model.FiscalDelivery;
+import br.com.gestpro.nota.model.CertificadoDigital;
+import br.com.gestpro.nota.model.ConfiguracaoFiscalEmpresa;
+import br.com.gestpro.nota.model.EventoFiscal;
+import br.com.gestpro.nota.model.FiscalWebhookConfig;
+import br.com.gestpro.nota.model.XmlFiscal;
 import jakarta.persistence.Column;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -18,6 +23,24 @@ import java.util.zip.CRC32;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FiscalMigrationCompatibilityTest {
+
+    @Test
+    void noncesMantemTipoBinarioFixoDasMigrations() throws Exception {
+        assertBinaryNonce(FiscalDelivery.class, "destinatarioNonce");
+        assertBinaryNonce(CertificadoDigital.class, "arquivoNonce");
+        assertBinaryNonce(CertificadoDigital.class, "senhaNonce");
+        assertBinaryNonce(ConfiguracaoFiscalEmpresa.class, "cscNonce");
+        assertBinaryNonce(EventoFiscal.class, "nonce");
+        assertBinaryNonce(FiscalWebhookConfig.class, "urlNonce");
+        assertBinaryNonce(FiscalWebhookConfig.class, "segredoNonce");
+        assertBinaryNonce(XmlFiscal.class, "nonce");
+    }
+
+    private void assertBinaryNonce(Class<?> entity, String field) throws Exception {
+        Column mapping = entity.getDeclaredField(field).getAnnotation(Column.class);
+        assertThat(mapping.columnDefinition()).isEqualTo("BINARY(12)");
+        assertThat(mapping.length()).isEqualTo(12);
+    }
 
     @Test
     void v12PermaneceImutavelDepoisDeAplicadaEmProducao() throws Exception {

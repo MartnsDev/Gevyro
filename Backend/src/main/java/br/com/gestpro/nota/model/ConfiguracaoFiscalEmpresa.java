@@ -28,7 +28,7 @@ public class ConfiguracaoFiscalEmpresa {
     @Column(name = "serie_nfce", nullable = false, length = 3) private String serieNfce;
     @Column(name = "csc_id", length = 20) private String cscId;
     @Lob @Column(name = "csc_cifrado", columnDefinition = "BLOB") private byte[] cscCifrado;
-    @Column(name = "csc_nonce", length = 12) private byte[] cscNonce;
+    @Column(name = "csc_nonce", length = 12, columnDefinition = "BINARY(12)") private byte[] cscNonce;
     @Column(name = "fiscal_habilitado", nullable = false) private boolean fiscalHabilitado;
     @Column(name = "nfe_habilitada", nullable = false) private boolean nfeHabilitada;
     @Column(name = "nfce_habilitada", nullable = false) private boolean nfceHabilitada;

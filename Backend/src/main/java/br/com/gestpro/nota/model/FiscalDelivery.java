@@ -20,7 +20,7 @@ public class FiscalDelivery {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Canal canal;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30) private Status status;
     @Lob @Column(name = "destinatario_cifrado", nullable = false, columnDefinition = "BLOB") private byte[] destinatarioCifrado;
-    @Column(name = "destinatario_nonce", nullable = false, length = 12) private byte[] destinatarioNonce;
+    @Column(name = "destinatario_nonce", nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] destinatarioNonce;
     @Column(name = "dedup_key", nullable = false, length = 64, columnDefinition = "CHAR(64)") private String dedupKey;
     @Column(nullable = false) private int tentativas;
     @Column(name = "max_tentativas", nullable = false) private int maxTentativas;

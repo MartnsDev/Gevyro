@@ -24,7 +24,7 @@ public class EventoFiscal {
     @Column(length = 255) private String motivo;
     @Column(length = 60) private String protocolo;
     @Lob @Column(name = "conteudo_cifrado", nullable = false, columnDefinition = "LONGBLOB") private byte[] conteudoCifrado;
-    @Column(nullable = false, length = 12) private byte[] nonce;
+    @Column(nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] nonce;
     @Column(nullable = false, length = 64) private String sha256;
     @Column(name = "criado_em", nullable = false, updatable = false) private Instant criadoEm;
 

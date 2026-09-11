@@ -18,7 +18,7 @@ public class XmlFiscal {
     @Column(name = "documento_id", nullable = false) private Long documentoId;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Tipo tipo;
     @Lob @Column(name = "conteudo_cifrado", nullable = false, columnDefinition = "LONGBLOB") private byte[] conteudoCifrado;
-    @Column(nullable = false, length = 12) private byte[] nonce;
+    @Column(nullable = false, length = 12, columnDefinition = "BINARY(12)") private byte[] nonce;
     @Column(name = "sha256", nullable = false, length = 64, unique = true) private String sha256;
     @Column(name = "layout_versao", nullable = false, length = 40) private String layoutVersao;
     @Column(nullable = false, length = 40) private String provider;
