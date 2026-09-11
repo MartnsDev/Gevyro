@@ -9,10 +9,28 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.CRC32;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FiscalMigrationCompatibilityTest {
+
+    @Test
+    void v12PermaneceImutavelDepoisDeAplicadaEmProducao() throws Exception {
+        ClassPathResource migration = new ClassPathResource("db/migration/V12__fiscal_role_access.sql");
+        CRC32 checksum = new CRC32();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                migration.getInputStream(), StandardCharsets.UTF_8))) {
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                checksum.update(line.replace("\uFEFF", "").getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        assertThat((int) checksum.getValue()).isEqualTo(87_968_478);
+    }
 
     @Test
     void dedupKeyMantemMesmoTipoFixoDaMigrationV15() throws Exception {
@@ -33,6 +51,8 @@ class FiscalMigrationCompatibilityTest {
 
         new ResourceDatabasePopulator(new ClassPathResource(
                 "db/migration/V12__fiscal_role_access.sql")).execute(dataSource);
+        new ResourceDatabasePopulator(new ClassPathResource(
+                "db/migration/V17__rename_fiscal_access_role.sql")).execute(dataSource);
 
         try (Connection connection = dataSource.getConnection();
              ResultSet columns = connection.getMetaData().getColumns(null, null,
