@@ -19,10 +19,11 @@ de transação e deixa o Flyway aplicar a V12 corrigida. Depois do sucesso, o
 mecanismo fica inerte. Se encontrar DDL parcial ou estado divergente, o deploy
 continua bloqueado.
 
-Para a V17, o marcador falho só é removido quando a tabela existe, a coluna
-antiga `role` ainda existe e `fiscal_role` não existe. Isso comprova que a
-renomeação não foi aplicada. Se a coluna nova já existir, ou ambas estiverem
-presentes/ausentes, a recuperação recusa a alteração.
+Para a V17, o marcador falho só é removido quando a tabela e a constraint
+original `ck_fiscal_access_role` existem, a coluna antiga `role` ainda existe e
+`fiscal_role` não existe. Isso comprova que nenhum dos três passos da correção
+foi aplicado. A migration remove a constraint, renomeia a coluna e recria a
+mesma validação. Qualquer estado diferente bloqueia a recuperação.
 
 As consultas abaixo permanecem úteis para auditoria e diagnóstico manual.
 

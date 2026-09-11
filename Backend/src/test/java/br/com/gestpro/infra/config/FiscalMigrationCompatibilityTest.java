@@ -3,6 +3,7 @@ package br.com.gestpro.infra.config;
 import br.com.gestpro.nota.model.FiscalDelivery;
 import jakarta.persistence.Column;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -51,8 +52,12 @@ class FiscalMigrationCompatibilityTest {
 
         new ResourceDatabasePopulator(new ClassPathResource(
                 "db/migration/V12__fiscal_role_access.sql")).execute(dataSource);
-        new ResourceDatabasePopulator(new ClassPathResource(
-                "db/migration/V17__rename_fiscal_access_role.sql")).execute(dataSource);
+        String migrationV17 = new ClassPathResource("db/migration/V17__rename_fiscal_access_role.sql")
+                .getContentAsString(StandardCharsets.UTF_8);
+        assertThat(migrationV17).contains("DROP CHECK ck_fiscal_access_role");
+        String migrationV17CompativelComH2 = migrationV17.replace("DROP CHECK", "DROP CONSTRAINT");
+        new ResourceDatabasePopulator(new ByteArrayResource(
+                migrationV17CompativelComH2.getBytes(StandardCharsets.UTF_8))).execute(dataSource);
 
         try (Connection connection = dataSource.getConnection();
              ResultSet columns = connection.getMetaData().getColumns(null, null,

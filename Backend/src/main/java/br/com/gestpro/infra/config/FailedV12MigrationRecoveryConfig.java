@@ -59,7 +59,9 @@ public class FailedV12MigrationRecoveryConfig {
 
         boolean colunaAntigaExiste = colunaExiste(connection, "fiscal_company_access", "role");
         boolean colunaNovaExiste = colunaExiste(connection, "fiscal_company_access", "fiscal_role");
-        if (!colunaAntigaExiste || colunaNovaExiste) throw new IllegalStateException(
+        boolean constraintOriginalExiste = constraintExiste(
+                connection, "fiscal_company_access", "ck_fiscal_access_role");
+        if (!colunaAntigaExiste || colunaNovaExiste || !constraintOriginalExiste) throw new IllegalStateException(
                 "A V17 deixou estado parcial ou inesperado; recuperação automática recusada.");
 
         removerMarcadorFalho(connection, "17");
@@ -107,6 +109,23 @@ public class FailedV12MigrationRecoveryConfig {
         try (ResultSet columns = connection.getMetaData().getColumns(
                 connection.getCatalog(), null, tabela, coluna)) {
             return columns.next();
+        }
+    }
+
+    private boolean constraintExiste(Connection connection, String tabela, String constraint) throws SQLException {
+        try (PreparedStatement query = connection.prepareStatement("""
+                SELECT COUNT(*)
+                FROM information_schema.table_constraints
+                WHERE LOWER(table_name) = LOWER(?)
+                  AND LOWER(constraint_name) = LOWER(?)
+                  AND UPPER(constraint_type) = 'CHECK'
+                """)) {
+            query.setString(1, tabela);
+            query.setString(2, constraint);
+            try (ResultSet result = query.executeQuery()) {
+                if (!result.next()) throw new IllegalStateException("Metadados de constraints ilegíveis.");
+                return result.getInt(1) == 1;
+            }
         }
     }
 

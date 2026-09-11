@@ -15,7 +15,13 @@ class FailedV12MigrationRecoveryConfigTest {
         DataSource dataSource = banco("recuperacao_v17_segura");
         JdbcTemplate jdbc = prepararHistorico(dataSource);
         jdbc.update("INSERT INTO flyway_schema_history(version, success) VALUES ('16', TRUE), ('17', FALSE)");
-        jdbc.execute("CREATE TABLE fiscal_company_access (id BIGINT PRIMARY KEY, `role` VARCHAR(24) NOT NULL)");
+        jdbc.execute("""
+                CREATE TABLE fiscal_company_access (
+                    id BIGINT PRIMARY KEY,
+                    `role` VARCHAR(24) NOT NULL,
+                    CONSTRAINT ck_fiscal_access_role CHECK (`role` IN ('ADMINISTRADOR', 'FISCAL'))
+                )
+                """);
 
         new FailedV12MigrationRecoveryConfig().recuperarSeSeguro(dataSource);
 
@@ -31,6 +37,19 @@ class FailedV12MigrationRecoveryConfigTest {
         JdbcTemplate jdbc = prepararHistorico(dataSource);
         jdbc.update("INSERT INTO flyway_schema_history(version, success) VALUES ('17', FALSE)");
         jdbc.execute("CREATE TABLE fiscal_company_access (id BIGINT PRIMARY KEY, fiscal_role VARCHAR(24) NOT NULL)");
+
+        assertThatThrownBy(() -> new FailedV12MigrationRecoveryConfig().recuperarSeSeguro(dataSource))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("estado parcial");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='17'", Integer.class))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void recusaV17QuandoConstraintOriginalJaFoiRemovida() {
+        DataSource dataSource = banco("recuperacao_v17_sem_constraint");
+        JdbcTemplate jdbc = prepararHistorico(dataSource);
+        jdbc.update("INSERT INTO flyway_schema_history(version, success) VALUES ('17', FALSE)");
+        jdbc.execute("CREATE TABLE fiscal_company_access (id BIGINT PRIMARY KEY, `role` VARCHAR(24) NOT NULL)");
 
         assertThatThrownBy(() -> new FailedV12MigrationRecoveryConfig().recuperarSeSeguro(dataSource))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("estado parcial");
