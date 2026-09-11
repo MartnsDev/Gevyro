@@ -11,6 +11,34 @@ import static org.assertj.core.api.Assertions.*;
 class FailedV12MigrationRecoveryConfigTest {
 
     @Test
+    void removeSomenteMarcadorV17QuandoColunaAntigaPermaneceIntacta() {
+        DataSource dataSource = banco("recuperacao_v17_segura");
+        JdbcTemplate jdbc = prepararHistorico(dataSource);
+        jdbc.update("INSERT INTO flyway_schema_history(version, success) VALUES ('16', TRUE), ('17', FALSE)");
+        jdbc.execute("CREATE TABLE fiscal_company_access (id BIGINT PRIMARY KEY, `role` VARCHAR(24) NOT NULL)");
+
+        new FailedV12MigrationRecoveryConfig().recuperarSeSeguro(dataSource);
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='17'", Integer.class))
+                .isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='16'", Integer.class))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void recusaV17QuandoRenomeacaoPodeTerSidoAplicada() {
+        DataSource dataSource = banco("recuperacao_v17_parcial");
+        JdbcTemplate jdbc = prepararHistorico(dataSource);
+        jdbc.update("INSERT INTO flyway_schema_history(version, success) VALUES ('17', FALSE)");
+        jdbc.execute("CREATE TABLE fiscal_company_access (id BIGINT PRIMARY KEY, fiscal_role VARCHAR(24) NOT NULL)");
+
+        assertThatThrownBy(() -> new FailedV12MigrationRecoveryConfig().recuperarSeSeguro(dataSource))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("estado parcial");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE version='17'", Integer.class))
+                .isEqualTo(1);
+    }
+
+    @Test
     void removeSomenteMarcadorV12FalhoQuandoNaoHaDdlParcial() {
         DataSource dataSource = banco("recuperacao_segura");
         JdbcTemplate jdbc = prepararHistorico(dataSource);
